@@ -18,11 +18,10 @@ import asyncio
 import json
 import os
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "custom_components" / "godaikin_local"))
+from _load import load
 
-import protocol  # noqa: E402
+protocol = load("protocol")
 
 
 def _unit(args: argparse.Namespace) -> protocol.DaikinLocalUnit:
@@ -36,9 +35,12 @@ def _unit(args: argparse.Namespace) -> protocol.DaikinLocalUnit:
 
 async def cmd_discover(args: argparse.Namespace) -> None:
     targets = [t.strip() for t in args.targets.split(",")] if args.targets else None
-    units = await protocol.async_discover(broadcast=args.broadcast, timeout=args.timeout, targets=targets)
+    units = await protocol.async_discover(broadcast=args.broadcast, listen_for=args.timeout, targets=targets)
     if not units:
-        print("no replies (same L2 network? otherwise pass --targets <ip> ... ; is UDP 61245 free / allowed by ufw?)")
+        print(
+            "no replies (same L2 network? otherwise pass --targets <ip>,<ip>; "
+            "is UDP 61245 free and allowed by the firewall?)"
+        )
     for u in units:
         print(f"{u.thing_name}\t{u.host}\t{json.dumps(u.raw)}")
 
@@ -46,7 +48,7 @@ async def cmd_discover(args: argparse.Namespace) -> None:
 async def cmd_ping(args: argparse.Namespace) -> None:
     unit = protocol.DaikinLocalUnit.__new__(protocol.DaikinLocalUnit)
     unit.host, unit.port = args.host, args.port
-    raw = await unit._exchange(protocol.PING_MESSAGE.encode(), timeout=2.0)
+    raw = await unit._exchange(protocol.PING_MESSAGE.encode(), read_timeout=2.0)
     print(raw.decode("utf-8", errors="replace"))
 
 
@@ -74,7 +76,7 @@ async def cmd_set(args: argparse.Namespace) -> None:
 async def cmd_raw(args: argparse.Namespace) -> None:
     unit = protocol.DaikinLocalUnit.__new__(protocol.DaikinLocalUnit)
     unit.host, unit.port = args.host, args.port
-    raw = await unit._exchange(args.message.encode(), timeout=args.timeout)
+    raw = await unit._exchange(args.message.encode(), read_timeout=args.timeout)
     print(raw.decode("utf-8", errors="replace"))
 
 
@@ -86,7 +88,9 @@ def main() -> None:
     p.add_argument("--key")
     p.add_argument("--timeout", type=float, default=5.0)
     p.add_argument("--broadcast", default="255.255.255.255")
-    p.add_argument("--targets", default=None, help="comma-separated unicast discovery IPs (units on another VLAN)")
+    p.add_argument(
+        "--targets", default=None, help="comma-separated unicast discovery IPs (units on another VLAN)"
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("discover")
     sub.add_parser("ping")
@@ -98,7 +102,11 @@ def main() -> None:
     args = p.parse_args()
     if args.cmd != "discover" and not args.host:
         p.error("--host is required")
-    asyncio.run({"discover": cmd_discover, "ping": cmd_ping, "status": cmd_status, "set": cmd_set, "raw": cmd_raw}[args.cmd](args))
+    asyncio.run(
+        {"discover": cmd_discover, "ping": cmd_ping, "status": cmd_status, "set": cmd_set, "raw": cmd_raw}[
+            args.cmd
+        ](args)
+    )
 
 
 if __name__ == "__main__":

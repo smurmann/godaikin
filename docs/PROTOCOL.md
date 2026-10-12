@@ -119,7 +119,7 @@ The key is not derivable locally. The app receives it from the cloud:
 
 Practical ways to obtain it once (then the cloud is never needed again):
 
-1. **`tools/fetch_unit_keys.py`** (recommended). It replays the app's own login, which is a
+1. **The Home Assistant config flow** ("Sign in with GO DAIKIN account") or **`tools/fetch_unit_keys.py`**. Both replay the app's own login, which is a
    plain HTTPS call to the vendor's Lambda, no Cognito client secret required
    (module 3154 `login` saga, `bundle.js:1388860-1388930`):
 

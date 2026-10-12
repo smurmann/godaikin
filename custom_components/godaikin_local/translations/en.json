@@ -1,50 +1,123 @@
 {
   "config": {
     "step": {
+      "user": {
+        "title": "Add a GO DAIKIN air conditioner",
+        "description": "Sign in with your GO DAIKIN account to fetch the unit's local key, or enter a key you already have. After setup, all control stays on your local network.",
+        "menu_options": {
+          "cloud": "Sign in with GO DAIKIN account",
+          "manual": "Enter unit key manually"
+        }
+      },
+      "cloud": {
+        "title": "GO DAIKIN account",
+        "description": "Your credentials are used once to fetch the per-unit key and are not stored.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
       "pick": {
-        "title": "Units found on your network",
+        "title": "Choose a unit",
         "data": {
           "thing_name": "Unit"
         }
       },
+      "host": {
+        "title": "Network address",
+        "description": "IP address of {thing_name} on your network. Pre-filled when the unit answered discovery; otherwise find it in your router and consider a DHCP reservation.",
+        "data": {
+          "host": "IP address",
+          "name": "Name",
+          "port": "TCP port",
+          "five_speed_fan": "Force 5-speed fan table (normally auto-detected)"
+        }
+      },
       "manual": {
-        "title": "GO DAIKIN unit",
-        "description": "The unit key is the 32-character hex key the GO DAIKIN cloud hands to the app for this unit. See docs/PROTOCOL.md for how to capture it once.",
+        "title": "Manual setup",
+        "description": "The unit key is the 32-character hex key the GO DAIKIN cloud assigns to this unit.",
         "data": {
           "host": "IP address",
           "thing_name": "Thing name",
           "unit_key": "Unit key (hex)",
           "name": "Name",
           "port": "TCP port",
-          "five_speed_fan": "Force 5-speed fan table (normally auto-detected from the unit)"
+          "five_speed_fan": "Force 5-speed fan table (normally auto-detected)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Unit key rejected",
+        "description": "{thing_name} no longer accepts its key. Sign in again to fetch the current one.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not reach the unit on TCP port 7002.",
-      "invalid_key": "The unit answered but the reply could not be decrypted. Check the key."
+      "cannot_connect": "Could not connect. Check the address, that the unit is on your network, and that TCP port 7002 is reachable from Home Assistant.",
+      "invalid_auth": "Email or password is incorrect.",
+      "invalid_key": "The unit answered but the reply could not be decrypted. The key is wrong or has changed.",
+      "no_units": "No units with a key were found on this account.",
+      "unit_not_in_account": "This unit is not paired with that account."
     },
     "abort": {
-      "already_configured": "This unit is already configured."
+      "already_configured": "This unit is already configured.",
+      "all_configured": "Every unit on this account is already configured.",
+      "reauth_successful": "The unit key was updated."
     }
   },
   "entity": {
-    "sensor": {
-      "room_temperature": {
-        "name": "Room temperature"
-      },
-      "outdoor_temperature": {
-        "name": "Outdoor temperature"
-      },
-      "humidity": {
-        "name": "Humidity"
-      },
-      "power": {
-        "name": "Power"
-      },
-      "error_code": {
-        "name": "Error code"
+    "climate": {
+      "aircon": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Low",
+              "medium_low": "Medium low",
+              "medium": "Medium",
+              "medium_high": "Medium high",
+              "high": "High"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "none": "None",
+              "boost": "Turbo",
+              "silent": "Silent",
+              "sleep": "Sleep"
+            }
+          }
+        }
       }
+    },
+    "select": {
+      "louver": {
+        "name": "Louver position",
+        "state": {
+          "off": "Off",
+          "position_1": "Position 1",
+          "position_2": "Position 2",
+          "position_3": "Position 3",
+          "position_4": "Position 4",
+          "position_5": "Position 5",
+          "swing": "Swing"
+        }
+      }
+    },
+    "switch": {
+      "ioniser": {
+        "name": "Ioniser"
+      }
+    },
+    "sensor": {
+      "room_temperature": { "name": "Room temperature" },
+      "outdoor_temperature": { "name": "Outdoor temperature" },
+      "humidity": { "name": "Humidity" },
+      "power": { "name": "Power" },
+      "error_code": { "name": "Error code" },
+      "firmware_version": { "name": "Firmware version" }
     }
   }
 }
