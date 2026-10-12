@@ -1,0 +1,86 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: The integration registers no custom service actions.
+  appropriate-polling: done
+  brands: done
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency:
+    status: done
+    comment: No external requirements; the protocol client lives in protocol.py and uses cryptography from core.
+  docs-actions:
+    status: exempt
+    comment: No custom service actions.
+  docs-triggers:
+    status: exempt
+    comment: No custom triggers.
+  docs-conditions:
+    status: exempt
+    comment: No custom conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup:
+    status: exempt
+    comment: Entities are coordinator-driven and subscribe through CoordinatorEntity.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters:
+    status: exempt
+    comment: There are no options; every parameter is set during installation and documented there.
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery-update-info: done
+  discovery:
+    status: done
+    comment: DHCP discovery on the Wi-Fi module's MAC OUIs, confirmed with a unicast LAN probe.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: One config entry represents exactly one unit; additional units are added through new entries.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues:
+    status: exempt
+    comment: The only recoverable fault (rejected key) is handled by the reauthentication flow.
+  stale-devices:
+    status: exempt
+    comment: One device per config entry; removing the entry removes the device.
+
+  # Platinum
+  async-dependency:
+    status: done
+    comment: protocol.py is asyncio-native (asyncio streams and datagram endpoints); AES is a CPU-only call.
+  inject-websession: done
+  strict-typing: done

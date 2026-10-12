@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, KEY_FAILURES_BEFORE_REAUTH, SCAN_INTERVAL
@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class DaikinLocalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Fetches the unit's status document and applies state changes."""
+    """Fetch the unit's status document and apply state changes."""
 
     config_entry: ConfigEntry
 
@@ -48,13 +48,25 @@ class DaikinLocalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return data
 
     async def async_set(self, state: dict[str, Any]) -> None:
-        """Send a partial state update and refresh."""
+        """Send a partial state update, then refresh.
+
+        Raises translated HomeAssistantError so service calls surface a readable message.
+        """
         try:
             await self.unit.async_set_status(state)
         except DaikinKeyError as err:
-            raise ConfigEntryAuthFailed(f"Unit key rejected by {self.unit.host}: {err}") from err
+            self.config_entry.async_start_reauth(self.hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="key_rejected",
+                translation_placeholders={"host": self.unit.host},
+            ) from err
         except (DaikinLocalError, OSError, TimeoutError, ValueError) as err:
-            raise UpdateFailed(f"Command to {self.unit.host} failed: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_failed",
+                translation_placeholders={"host": self.unit.host, "error": str(err)},
+            ) from err
         if self.data:
             self.async_set_updated_data({**self.data, **state})
         await self.async_request_refresh()

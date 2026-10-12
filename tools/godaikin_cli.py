@@ -19,7 +19,10 @@ import json
 import os
 import sys
 
-from _load import load
+try:
+    from _load import load
+except ImportError:  # imported as a package from the repo root
+    from tools._load import load
 
 protocol = load("protocol")
 

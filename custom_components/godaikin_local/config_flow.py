@@ -1,11 +1,13 @@
-"""Config flow: log in with a GO DAIKIN account (or enter a key by hand), then pick the unit.
+"""Config flow for GO DAIKIN Local.
 
 Flow
 ----
-user ──► cloud (email + password) ──► pick (units from the account) ──► host ──► entry
-     └─► manual (host, thing name, key) ─────────────────────────────────────────► entry
+user ──► cloud (email + password) ──► pick (units on the account) ──► host ──► entry
+     └─► manual (host, thing name, key) ─────────────────────────────────────► entry
 
-reauth ──► reauth_confirm (password) ──► entry updated with the fresh key
+dhcp   ──► (unicast LAN probe confirms it is a GO DAIKIN unit) ──► cloud ──► host (prefilled)
+reauth ──► reauth_confirm (email + password) ──► entry updated with the fresh key
+reconfigure ──► host / port / name changed, key re-validated
 """
 
 from __future__ import annotations
@@ -15,9 +17,10 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .cloud import CloudAuthError, CloudError, CloudUnit, GoDaikinCloud
 from .const import CONF_FIVE_SPEED, CONF_THING_NAME, CONF_UNIT_KEY, DEFAULT_PORT, DOMAIN
@@ -26,28 +29,70 @@ from .protocol import DaikinKeyError, DaikinLocalError, DaikinLocalUnit, async_d
 _LOGGER = logging.getLogger(__name__)
 
 STEP_CLOUD_SCHEMA = vol.Schema({vol.Required(CONF_USERNAME): str, vol.Required(CONF_PASSWORD): str})
+DISCOVERY_LISTEN_SECONDS = 3.0
+
+
+def _host_schema(default_host: str, default_name: str, default_port: int = DEFAULT_PORT) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_HOST, default=default_host): str,
+            vol.Optional(CONF_NAME, default=default_name): str,
+            vol.Optional(CONF_PORT, default=default_port): int,
+            vol.Optional(CONF_FIVE_SPEED, default=False): bool,
+        }
+    )
 
 
 class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle the UI setup, discovery, reauth and reconfigure flows."""
+
     VERSION = 1
+    MINOR_VERSION = 1
 
     def __init__(self) -> None:
         self._units: dict[str, CloudUnit] = {}
         self._discovered: dict[str, str] = {}
         self._chosen: CloudUnit | None = None
+        self._dhcp_thing: str | None = None
 
-    # ----- entry point -------------------------------------------------------------
+    # ----- entry points -------------------------------------------------------------
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(step_id="user", menu_options=["cloud", "manual"])
 
-    # ----- cloud login -------------------------------------------------------------
+    async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
+        """A device with the Wi-Fi module's OUI appeared; confirm it is a GO DAIKIN unit."""
+        host = discovery_info.ip
+        try:
+            units = await async_discover(targets=[host], listen_for=DISCOVERY_LISTEN_SECONDS)
+        except OSError:
+            units = []
+        found = next((u for u in units if u.host == host), None)
+        if found is None:
+            return self.async_abort(reason="not_godaikin_device")
+        await self.async_set_unique_id(found.thing_name)
+        # discovery-update-info: keep the stored address current if the unit moved.
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+        self._dhcp_thing = found.thing_name
+        self._discovered[found.thing_name] = host
+        self.context["title_placeholders"] = {"name": found.thing_name}
+        return await self.async_step_dhcp_confirm()
+
+    async def async_step_dhcp_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return await self.async_step_cloud()
+        thing = self._dhcp_thing or ""
+        return self.async_show_form(
+            step_id="dhcp_confirm",
+            description_placeholders={"thing_name": thing, "host": self._discovered.get(thing, "")},
+        )
+
+    # ----- cloud login --------------------------------------------------------------
 
     async def _fetch_units(self, username: str, password: str) -> dict[str, CloudUnit]:
         cloud = GoDaikinCloud(async_get_clientsession(self.hass))
         session = await cloud.async_login(username, password)
-        units = await cloud.async_get_units(session)
-        return {u.thing_name: u for u in units if u.key}
+        return {u.thing_name: u for u in await cloud.async_get_units(session) if u.key}
 
     async def async_step_cloud(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -62,8 +107,13 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 if not self._units:
                     errors["base"] = "no_units"
-                else:
+                elif self._dhcp_thing is None:
                     return await self.async_step_pick()
+                elif self._dhcp_thing not in self._units:
+                    errors["base"] = "unit_not_in_account"
+                else:
+                    self._chosen = self._units[self._dhcp_thing]
+                    return await self.async_step_host()
         return self.async_show_form(step_id="cloud", data_schema=STEP_CLOUD_SCHEMA, errors=errors)
 
     async def async_step_pick(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -74,14 +124,17 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             return await self.async_step_host()
         if not self._discovered:
             try:
-                self._discovered = {u.thing_name: u.host for u in await async_discover(listen_for=3.0)}
+                found = await async_discover(listen_for=DISCOVERY_LISTEN_SECONDS)
             except OSError as err:
                 _LOGGER.debug("UDP discovery unavailable: %s", err)
-        configured = {e.unique_id for e in self._async_current_entries()}
+                found = []
+            self._discovered = {u.thing_name: u.host for u in found}
+        configured = {entry.unique_id for entry in self._async_current_entries()}
         options = {
-            t: f"{u.name or t}" + (f" ({self._discovered[t]})" if t in self._discovered else "")
-            for t, u in self._units.items()
-            if t not in configured
+            thing: (unit.name or thing)
+            + (f" ({self._discovered[thing]})" if thing in self._discovered else "")
+            for thing, unit in self._units.items()
+            if thing not in configured
         }
         if not options:
             return self.async_abort(reason="all_configured")
@@ -90,9 +143,10 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_host(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        assert self._chosen is not None
-        errors: dict[str, str] = {}
+        if self._chosen is None:  # pragma: no cover - defensive
+            return self.async_abort(reason="unknown")
         thing = self._chosen.thing_name
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = {
                 CONF_HOST: user_input[CONF_HOST],
@@ -105,19 +159,14 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             errors = await self._validate_local(data)
             if not errors:
                 return self.async_create_entry(title=user_input[CONF_NAME], data=data)
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_HOST, default=self._discovered.get(thing, "")): str,
-                vol.Optional(CONF_NAME, default=self._chosen.name or thing): str,
-                vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-                vol.Optional(CONF_FIVE_SPEED, default=False): bool,
-            }
-        )
         return self.async_show_form(
-            step_id="host", data_schema=schema, errors=errors, description_placeholders={"thing_name": thing}
+            step_id="host",
+            data_schema=_host_schema(self._discovered.get(thing, ""), self._chosen.name or thing),
+            errors=errors,
+            description_placeholders={"thing_name": thing},
         )
 
-    # ----- manual ------------------------------------------------------------------
+    # ----- manual -------------------------------------------------------------------
 
     async def async_step_manual(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -139,7 +188,7 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="manual", data_schema=schema, errors=errors)
 
-    # ----- reauth (key rejected) ---------------------------------------------------
+    # ----- reauth (key rejected) ----------------------------------------------------
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         return await self.async_step_reauth_confirm()
@@ -167,9 +216,29 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"thing_name": entry.data[CONF_THING_NAME]},
         )
 
-    # ----- helpers -----------------------------------------------------------------
+    # ----- reconfigure (address / name changed) -------------------------------------
 
-    async def _validate_local(self, data: dict[str, Any]) -> dict[str, str]:
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            errors = await self._validate_local({**entry.data, **user_input})
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    entry, data_updates=user_input, title=user_input[CONF_NAME]
+                )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=_host_schema(
+                entry.data[CONF_HOST], entry.title, entry.data.get(CONF_PORT, DEFAULT_PORT)
+            ),
+            errors=errors,
+            description_placeholders={"thing_name": entry.data[CONF_THING_NAME]},
+        )
+
+    # ----- helpers ------------------------------------------------------------------
+
+    async def _validate_local(self, data: Mapping[str, Any]) -> dict[str, str]:
         try:
             unit = DaikinLocalUnit(
                 data[CONF_HOST], data[CONF_THING_NAME], data[CONF_UNIT_KEY], data[CONF_PORT]
@@ -180,7 +249,3 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         except (DaikinLocalError, OSError, TimeoutError, ValueError):
             return {"base": "cannot_connect"}
         return {}
-
-    @property
-    def _is_reauth(self) -> bool:
-        return self.source == SOURCE_REAUTH

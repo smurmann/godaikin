@@ -25,15 +25,15 @@ jobs:
           category: integration
           ignore: brands
 
-  lint-and-test:
-    name: Ruff + protocol tests
+  quality:
+    name: Ruff, mypy (strict), tests (≥95% coverage)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install ruff cryptography
-      - run: ruff check .
-      - run: ruff format --check .
-      - run: python tools/test_protocol.py
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run python tools/test_protocol.py
+      - run: uv run pytest

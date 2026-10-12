@@ -20,6 +20,9 @@ from .coordinator import DaikinLocalCoordinator
 from .entity import DaikinLocalEntity
 from .protocol import F_ERROR, F_HUMIDITY, F_OUTDOOR_TEMP, F_POWER, F_ROOM_TEMP, F_VERSION, to_float
 
+# Coordinator-based platform: entity updates are serialised by the coordinator.
+PARALLEL_UPDATES = 0
+
 
 @dataclass(frozen=True, kw_only=True)
 class DaikinSensorDescription(SensorEntityDescription):

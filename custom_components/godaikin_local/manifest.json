@@ -4,10 +4,14 @@
   "codeowners": ["@smurmann"],
   "config_flow": true,
   "dependencies": [],
+  "dhcp": [
+    { "macaddress": "38E7C0*" },
+    { "macaddress": "A8169D*" }
+  ],
   "documentation": "https://github.com/smurmann/godaikin-local",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/smurmann/godaikin-local/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

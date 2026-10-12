@@ -1,0 +1,53 @@
+{
+  "entity": {
+    "climate": {
+      "aircon": {
+        "default": "mdi:air-conditioner",
+        "state_attributes": {
+          "preset_mode": {
+            "default": "mdi:tune",
+            "state": {
+              "none": "mdi:circle-off-outline",
+              "boost": "mdi:rocket-launch",
+              "silent": "mdi:volume-off",
+              "sleep": "mdi:power-sleep"
+            }
+          },
+          "fan_mode": {
+            "default": "mdi:fan",
+            "state": {
+              "auto": "mdi:fan-auto",
+              "low": "mdi:fan-speed-1",
+              "medium_low": "mdi:fan-speed-1",
+              "medium": "mdi:fan-speed-2",
+              "medium_high": "mdi:fan-speed-3",
+              "high": "mdi:fan-speed-3"
+            }
+          }
+        }
+      }
+    },
+    "select": {
+      "louver": {
+        "default": "mdi:arrow-up-down-bold",
+        "state": {
+          "off": "mdi:arrow-collapse-horizontal",
+          "swing": "mdi:swap-vertical-bold"
+        }
+      }
+    },
+    "switch": {
+      "ioniser": {
+        "default": "mdi:creation",
+        "state": {
+          "off": "mdi:creation-outline"
+        }
+      }
+    },
+    "sensor": {
+      "firmware_version": { "default": "mdi:chip" },
+      "error_code": { "default": "mdi:alert-circle-outline" },
+      "power": { "default": "mdi:flash" }
+    }
+  }
+}

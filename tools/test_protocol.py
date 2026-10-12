@@ -10,7 +10,10 @@ import json
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from _load import load
+try:
+    from _load import load
+except ImportError:  # imported as a package from the repo root
+    from tools._load import load
 
 cloud = load("cloud")
 p = load("protocol")

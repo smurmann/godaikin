@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "GO DAIKIN unit {name}",
     "step": {
       "user": {
         "title": "Add a GO DAIKIN air conditioner",
@@ -9,28 +10,45 @@
           "manual": "Enter unit key manually"
         }
       },
+      "dhcp_confirm": {
+        "title": "GO DAIKIN unit found",
+        "description": "Unit {thing_name} was found at {host}. Sign in with your GO DAIKIN account on the next step to fetch its local key."
+      },
       "cloud": {
         "title": "GO DAIKIN account",
         "description": "Your credentials are used once to fetch the per-unit key and are not stored.",
         "data": {
           "username": "Email",
           "password": "Password"
+        },
+        "data_description": {
+          "username": "The email address you use in the GO DAIKIN app.",
+          "password": "Your GO DAIKIN app password."
         }
       },
       "pick": {
         "title": "Choose a unit",
         "data": {
           "thing_name": "Unit"
+        },
+        "data_description": {
+          "thing_name": "Units on the account that are not configured yet. An IP address in brackets means the unit answered discovery."
         }
       },
       "host": {
         "title": "Network address",
-        "description": "IP address of {thing_name} on your network. Pre-filled when the unit answered discovery; otherwise find it in your router and consider a DHCP reservation.",
+        "description": "Address of {thing_name} on your network.",
         "data": {
           "host": "IP address",
           "name": "Name",
           "port": "TCP port",
-          "five_speed_fan": "Force 5-speed fan table (normally auto-detected)"
+          "five_speed_fan": "Force 5-speed fan table"
+        },
+        "data_description": {
+          "host": "Pre-filled when the unit answered discovery; otherwise find it in your router. A DHCP reservation is recommended.",
+          "name": "Shown in Home Assistant, for example the room name.",
+          "port": "Leave at 7002 unless you know the unit uses another port.",
+          "five_speed_fan": "Normally detected automatically from the unit; only force it if a 5-speed unit shows three fan speeds."
         }
       },
       "manual": {
@@ -42,7 +60,15 @@
           "unit_key": "Unit key (hex)",
           "name": "Name",
           "port": "TCP port",
-          "five_speed_fan": "Force 5-speed fan table (normally auto-detected)"
+          "five_speed_fan": "Force 5-speed fan table"
+        },
+        "data_description": {
+          "host": "Address of the unit on your network.",
+          "thing_name": "Identifier such as Daikin_aabbccddeeff, as returned by discovery.",
+          "unit_key": "32 hexadecimal characters, obtained with tools/fetch_unit_keys.py.",
+          "name": "Shown in Home Assistant, for example the room name.",
+          "port": "Leave at 7002 unless you know the unit uses another port.",
+          "five_speed_fan": "Normally detected automatically from the unit."
         }
       },
       "reauth_confirm": {
@@ -51,6 +77,26 @@
         "data": {
           "username": "Email",
           "password": "Password"
+        },
+        "data_description": {
+          "username": "The email address you use in the GO DAIKIN app.",
+          "password": "Your GO DAIKIN app password."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure {thing_name}",
+        "description": "Change the network address or name. The connection is tested before saving.",
+        "data": {
+          "host": "IP address",
+          "name": "Name",
+          "port": "TCP port",
+          "five_speed_fan": "Force 5-speed fan table"
+        },
+        "data_description": {
+          "host": "New address of the unit on your network.",
+          "name": "Shown in Home Assistant.",
+          "port": "Leave at 7002 unless you know the unit uses another port.",
+          "five_speed_fan": "Normally detected automatically from the unit."
         }
       }
     },
@@ -64,7 +110,18 @@
     "abort": {
       "already_configured": "This unit is already configured.",
       "all_configured": "Every unit on this account is already configured.",
-      "reauth_successful": "The unit key was updated."
+      "not_godaikin_device": "The discovered device is not a GO DAIKIN unit.",
+      "reauth_successful": "The unit key was updated.",
+      "reconfigure_successful": "The unit was reconfigured.",
+      "unknown": "Unexpected error."
+    }
+  },
+  "exceptions": {
+    "command_failed": {
+      "message": "Command to the GO DAIKIN unit at {host} failed: {error}"
+    },
+    "key_rejected": {
+      "message": "The GO DAIKIN unit at {host} rejected its key; re-authentication has been requested"
     }
   },
   "entity": {

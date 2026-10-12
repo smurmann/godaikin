@@ -9,8 +9,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DaikinConfigEntry
 from .const import CONF_THING_NAME
+from .coordinator import DaikinLocalCoordinator
 from .entity import DaikinLocalEntity
 from .protocol import F_SWING, F_UDLVR, LOUVER_POSITIONS, to_int
+
+# Coordinator-based platform: entity updates are serialised by the coordinator.
+PARALLEL_UPDATES = 0
 
 OPTION_OFF = "off"
 OPTION_SWING = "swing"
@@ -26,7 +30,7 @@ class DaikinLouverSelect(DaikinLocalEntity, SelectEntity):
     _attr_entity_category = EntityCategory.CONFIG
     _attr_options = OPTIONS
 
-    def __init__(self, coordinator, thing_name: str) -> None:
+    def __init__(self, coordinator: DaikinLocalCoordinator, thing_name: str) -> None:
         super().__init__(coordinator, thing_name, "louver")
 
     @property

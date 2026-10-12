@@ -6,3 +6,8 @@ units.json
 *.env
 *.apk
 *.xapk
+.venv/
+.coverage
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/

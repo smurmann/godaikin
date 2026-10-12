@@ -11,8 +11,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DaikinConfigEntry
 from .const import CONF_THING_NAME
+from .coordinator import DaikinLocalCoordinator
 from .entity import DaikinLocalEntity
 from .protocol import F_ION, to_int
+
+# Coordinator-based platform: entity updates are serialised by the coordinator.
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: DaikinConfigEntry, add: AddEntitiesCallback) -> None:
@@ -24,7 +28,7 @@ class DaikinIonSwitch(DaikinLocalEntity, SwitchEntity):
     _attr_device_class = SwitchDeviceClass.SWITCH
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, coordinator, thing_name: str) -> None:
+    def __init__(self, coordinator: DaikinLocalCoordinator, thing_name: str) -> None:
         super().__init__(coordinator, thing_name, "ion")
 
     @property

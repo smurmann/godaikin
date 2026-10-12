@@ -24,7 +24,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from _load import load
+try:
+    from _load import load
+except ImportError:  # imported as a package from the repo root
+    from tools._load import load
 
 _cloud = load("cloud")
 REGION_API, UNIVERSAL_API, USER_AGENT = _cloud.REGION_API, _cloud.UNIVERSAL_API, _cloud.USER_AGENT

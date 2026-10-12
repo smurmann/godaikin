@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.climate import (
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import (
     PRESET_BOOST,
     PRESET_NONE,
     PRESET_SLEEP,
     SWING_OFF,
     SWING_VERTICAL,
-    ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
 )
@@ -41,6 +41,9 @@ from .protocol import (
     to_float,
     to_int,
 )
+
+# Coordinator-based platform: entity updates are serialised by the coordinator.
+PARALLEL_UPDATES = 0
 
 HVAC_FROM_MODE: dict[str, HVACMode] = {
     "cool": HVACMode.COOL,

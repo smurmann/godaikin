@@ -169,9 +169,9 @@ def has_complete_frame(raw: bytes) -> bool:
 def unframe(raw: bytes) -> dict[str, Any]:
     """Parse the first complete frame.  Units occasionally send two frames in one read."""
     frames = split_frames(raw)
-    if frames:
-        return json.loads(frames[0])
-    return json.loads(re.sub(r"\s|<|>", "", raw.decode("utf-8", errors="replace")))
+    body = frames[0] if frames else re.sub(r"\s|<|>", "", raw.decode("utf-8", errors="replace"))
+    parsed: dict[str, Any] = json.loads(body)
+    return parsed
 
 
 def build_get_status(thing_name: str, unit_key: str) -> bytes:
@@ -193,7 +193,8 @@ def parse_encrypted_reply(raw: bytes, unit_key: str) -> dict[str, Any]:
     if "payload" not in outer:
         return outer  # plaintext replies (e.g. ack) pass through
     plain = re.sub(r"\s", "", decrypt_payload(outer["payload"], unit_key))
-    return json.loads(plain)
+    document: dict[str, Any] = json.loads(plain)
+    return document
 
 
 def extract_state(reply: dict[str, Any]) -> dict[str, Any]:
