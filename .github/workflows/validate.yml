@@ -23,7 +23,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: brands
 
   quality:
     name: Ruff, mypy (strict), tests (≥95% coverage)

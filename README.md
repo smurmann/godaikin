@@ -189,10 +189,7 @@ Diagnostics downloads redact them.
 
 ## Brand assets
 
-`brands/custom_integrations/godaikin_local/` holds the icon and logo in the layout the
-[home-assistant/brands](https://github.com/home-assistant/brands) repository expects. Home
-Assistant only shows integration logos served from that repository, so they appear in the UI
-once the pull request adding this folder is merged there.
+The integration ships its own icon and logo in `custom_components/godaikin_local/brand/`, which Home Assistant 2026.3 and newer serve locally (the central brands repository no longer accepts custom integrations). Home Assistant 2025.1 or newer is required by the integration itself; versions before 2026.3 simply show a generic icon.
 
 ## Development
 
