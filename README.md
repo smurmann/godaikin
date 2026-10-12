@@ -189,7 +189,7 @@ Diagnostics downloads redact them.
 
 ## Brand assets
 
-`brands/custom_integrations/godaikin_local/` holds Daikin's official brand images (the same files the core `daikin` integration uses) in the layout the
+`brands/custom_integrations/godaikin_local/` holds the icon and logo in the layout the
 [home-assistant/brands](https://github.com/home-assistant/brands) repository expects. Home
 Assistant only shows integration logos served from that repository, so they appear in the UI
 once the pull request adding this folder is merged there.
