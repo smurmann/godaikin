@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.scratch/
+# never commit unit keys or credentials
+units.json
+*.env
+*.apk
+*.xapk

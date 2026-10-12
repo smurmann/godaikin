@@ -1,0 +1,50 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Units found on your network",
+        "data": {
+          "thing_name": "Unit"
+        }
+      },
+      "manual": {
+        "title": "GO DAIKIN unit",
+        "description": "The unit key is the 32-character hex key the GO DAIKIN cloud hands to the app for this unit. See docs/PROTOCOL.md for how to capture it once.",
+        "data": {
+          "host": "IP address",
+          "thing_name": "Thing name",
+          "unit_key": "Unit key (hex)",
+          "name": "Name",
+          "port": "TCP port",
+          "five_speed_fan": "Force 5-speed fan table (normally auto-detected from the unit)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the unit on TCP port 7002.",
+      "invalid_key": "The unit answered but the reply could not be decrypted. Check the key."
+    },
+    "abort": {
+      "already_configured": "This unit is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "room_temperature": {
+        "name": "Room temperature"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "error_code": {
+        "name": "Error code"
+      }
+    }
+  }
+}

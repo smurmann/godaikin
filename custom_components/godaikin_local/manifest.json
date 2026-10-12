@@ -1,0 +1,13 @@
+{
+  "domain": "godaikin_local",
+  "name": "GO DAIKIN Local (LAN)",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/smurmann/godaikin-local",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/smurmann/godaikin-local/issues",
+  "requirements": ["cryptography>=41.0.0"],
+  "version": "0.1.0"
+}

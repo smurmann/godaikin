@@ -1,0 +1,369 @@
+"""Local LAN protocol for GO DAIKIN (my.com.daikin.app) Wi-Fi air conditioners.
+
+Everything in this module was reconstructed from the decompiled Hermes bundle of
+GO DAIKIN 2.2.88 (see docs/PROTOCOL.md for the evidence trail).  It has NOT yet
+been validated against real hardware, so every assumption that could not be
+confirmed statically is marked with "UNVERIFIED" below.
+
+Transport summary
+-----------------
+Discovery   UDP broadcast of ``{"LAN_DEV_DETECT":"LAN_DEV_DETECT"}`` to port 61244,
+            replies are received on local port 61245.  The reply is a Python-style
+            dict literal (single quotes) with one trailing framing character;
+            the app strips the last character and swaps ' for ".
+Control     TCP to the unit on port 7002.  Every message is framed as
+            ``<{...json...}>``.  Status and control messages carry an inner
+            JSON document encrypted with AES-128-CBC, key == IV == the unit key
+            (32 hex characters), PKCS#7 padding, hex-encoded ciphertext:
+            ``<{"payload":"<hex>"}>``.
+Ping        Plain ``<{"ack": 1}>``.
+"""
+
+from __future__ import annotations
+
+import ast
+import asyncio
+import json
+import logging
+import re
+import socket
+from dataclasses import dataclass, field
+from typing import Any
+
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+_LOGGER = logging.getLogger(__name__)
+
+# --- Constants observed in the app bundle -----------------------------------
+DISCOVERY_MESSAGE = '{"LAN_DEV_DETECT":"LAN_DEV_DETECT"}'
+DISCOVERY_REPLY_KEY = "LAN_DEV_DETECT"
+DISCOVERY_TARGET_PORT = 61244
+DISCOVERY_LOCAL_PORT = 61245
+DISCOVERY_TIMEOUT = 5.0
+
+CONTROL_PORT = 7002
+CONTROL_TIMEOUT = 5.0
+PING_MESSAGE = '<{"ack": 1}>'
+
+# Shadow field names (same vocabulary as the AWS IoT shadow used by the cloud path)
+F_ONOFF = "Set_OnOff"
+F_MODE = "Set_Mode"
+F_TEMP = "Set_Temp"
+F_FAN = "Set_Fan"
+F_FAN_EXT = "Set_FanExtend"
+F_SWING = "Set_Swing"
+F_UDLVR = "Set_UDLvr"
+F_SILENT = "Set_Silent"
+F_TURBO = "Set_Turbo"
+F_SLEEP = "Set_Sleep"
+F_ION = "Set_Ion"
+F_VERSION = "version"
+F_UPDATED = "updatedOn"
+F_ROOM_TEMP = "Stat_IDRoomTemp"
+F_OUTDOOR_TEMP = "Stat_ODAirTemp"
+F_HUMIDITY = "Sta_IDRh"
+F_ERROR = "Stat_ErrorCode"
+F_POWER = "Stat_ODPowerConsumption"
+
+# Set_Mode values (ModeKeyMap, bundle module 1783)
+MODE_TO_VALUE = {"cool": 1, "fan": 2, "dry": 4, "heat": 8, "auto": 10}
+VALUE_TO_MODE = {v: k for k, v in MODE_TO_VALUE.items()}
+
+# Fan levels for the 5-speed handset ("DAMA", bundle module 1765):
+# level -> (Set_Fan, Set_FanExtend).  Auto is Set_Fan=128 with no extend bit.
+FAN_TO_VALUE_5 = {
+    "auto": (128, None),
+    "level1": (2, 0),
+    "level2": (2, 1),
+    "level3": (4, 0),
+    "level4": (8, 1),
+    "level5": (8, 0),
+}
+# 3-speed handset ("DIL"): auto=128, level1=2, level2=4, level3=8 (UNVERIFIED pairing of names)
+FAN_TO_VALUE_3 = {"auto": (128, None), "level1": (2, None), "level2": (4, None), "level3": (8, None)}
+
+# Swing: Set_Swing 1 + Set_UDLvr 15 = full swing; Set_Swing 0 + Set_UDLvr n = fixed louver n (1..5); 0_0 = off
+SWING_FULL = (1, 15)
+SWING_OFF = (0, 0)
+
+# Non-greedy: the unit occasionally sends two frames back to back in one TCP read
+# (seen live: "Extra data: ... char 750"), so always take the first complete one.
+_FRAME_RE = re.compile(r"<\s*(\{.*?\})\s*>", re.S)
+
+
+class DaikinLocalError(Exception):
+    """Base error."""
+
+
+class DaikinKeyError(DaikinLocalError):
+    """The unit rejected our key or we could not decrypt its reply."""
+
+
+# --- Crypto -------------------------------------------------------------------
+
+def _key_bytes(unit_key: str) -> bytes:
+    key = unit_key.strip()
+    try:
+        raw = bytes.fromhex(key)
+    except ValueError as err:
+        raise DaikinKeyError("unit key must be hex (the app decodes it with Buffer.from(key, 'hex'))") from err
+    if len(raw) != 16:
+        raise DaikinKeyError(f"AES-128 needs a 16-byte key, got {len(raw)} bytes")
+    return raw
+
+
+def encrypt_payload(plaintext: str, unit_key: str) -> str:
+    """AES-128-CBC, key == iv, PKCS7, hex output (bundle module 2149 defaults)."""
+    key = _key_bytes(unit_key)
+    padder = padding.PKCS7(128).padder()
+    data = padder.update(plaintext.encode("utf-8")) + padder.finalize()
+    enc = Cipher(algorithms.AES(key), modes.CBC(key)).encryptor()
+    return (enc.update(data) + enc.finalize()).hex()
+
+
+def decrypt_payload(hex_ciphertext: str, unit_key: str) -> str:
+    key = _key_bytes(unit_key)
+    try:
+        data = bytes.fromhex(hex_ciphertext.strip())
+        dec = Cipher(algorithms.AES(key), modes.CBC(key)).decryptor()
+        padded = dec.update(data) + dec.finalize()
+        unpadder = padding.PKCS7(128).unpadder()
+        return (unpadder.update(padded) + unpadder.finalize()).decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as err:
+        # The app maps a decrypt failure to "Target unit's key might have expired".
+        raise DaikinKeyError("could not decrypt reply; the unit key is probably wrong or expired") from err
+
+
+# --- Framing ------------------------------------------------------------------
+
+def frame(obj_json: str) -> bytes:
+    return f"<{obj_json}>".encode("utf-8")
+
+
+def split_frames(raw: bytes) -> list[str]:
+    """Return the JSON bodies of every complete <{...}> frame in the buffer."""
+    text = raw.decode("utf-8", errors="replace")
+    return [re.sub(r"\s", "", m.group(1)) for m in _FRAME_RE.finditer(text)]
+
+
+def has_complete_frame(raw: bytes) -> bool:
+    return bool(_FRAME_RE.search(raw.decode("utf-8", errors="replace")))
+
+
+def unframe(raw: bytes) -> dict[str, Any]:
+    """Parse the first complete <{...}> frame (the app also strips whitespace and < >)."""
+    frames = split_frames(raw)
+    if frames:
+        return json.loads(frames[0])
+    text = re.sub(r"\s|<|>", "", raw.decode("utf-8", errors="replace"))
+    return json.loads(text)
+
+
+def build_get_status(thing_name: str, unit_key: str) -> bytes:
+    inner = f'{{"action":"getStatus","version":-1,"thingName":"{thing_name}"}}'
+    return frame(f'{{"payload":"{encrypt_payload(inner, unit_key)}"}}')
+
+
+def build_set_status(thing_name: str, unit_key: str, state: dict[str, Any]) -> bytes:
+    inner = (
+        '{"action":"setStatus","version":-1,"state":'
+        + json.dumps(state, separators=(",", ":"))
+        + f',"thingName":"{thing_name}"}}'
+    )
+    return frame(f'{{"payload":"{encrypt_payload(inner, unit_key)}"}}')
+
+
+def parse_encrypted_reply(raw: bytes, unit_key: str) -> dict[str, Any]:
+    outer = unframe(raw)
+    if "payload" not in outer:
+        # Unencrypted replies (e.g. ack) come through unchanged.
+        return outer
+    plain = decrypt_payload(outer["payload"], unit_key)
+    plain = re.sub(r"\s", "", plain)
+    return json.loads(plain)
+
+
+def extract_state(reply: dict[str, Any]) -> dict[str, Any]:
+    """Locate the reported state inside a getStatus reply.
+
+    UNVERIFIED: the decompiled code returns JSON.parse(decrypted) straight to
+    the caller, so the exact envelope is unknown.  Try the common AWS shadow
+    shapes, then fall back to the document itself.
+    """
+    for path in (("state", "reported"), ("state",), ("reported",), ("payload",)):
+        node: Any = reply
+        for key in path:
+            node = node.get(key) if isinstance(node, dict) else None
+        if isinstance(node, dict) and (F_ONOFF in node or F_ROOM_TEMP in node):
+            return node
+    return reply
+
+
+# --- Discovery -----------------------------------------------------------------
+
+@dataclass
+class DiscoveredUnit:
+    thing_name: str
+    host: str
+    raw: dict[str, Any] = field(default_factory=dict)
+
+
+def _parse_discovery_reply(data: bytes, source: str) -> DiscoveredUnit | None:
+    text = data.decode("utf-8", errors="replace")
+    # App: data.slice(0, -1).replace(/'/g, '"') then JSON.parse
+    candidates = [text[:-1], text]
+    for cand in candidates:
+        cand = cand.strip()
+        try:
+            obj = json.loads(cand.replace("'", '"'))
+        except json.JSONDecodeError:
+            try:
+                obj = ast.literal_eval(cand)
+            except (ValueError, SyntaxError):
+                continue
+        if not isinstance(obj, dict):
+            continue
+        info = obj.get(DISCOVERY_REPLY_KEY, obj)
+        if isinstance(info, dict) and "thingName" in info:
+            return DiscoveredUnit(thing_name=str(info["thingName"]), host=source, raw=info)
+    _LOGGER.debug("Unparseable discovery reply from %s: %r", source, text)
+    return None
+
+
+async def async_discover(
+    broadcast: str = "255.255.255.255",
+    timeout: float = DISCOVERY_TIMEOUT,
+    local_port: int = DISCOVERY_LOCAL_PORT,
+    targets: list[str] | None = None,
+) -> list[DiscoveredUnit]:
+    """Broadcast discovery; pass ``targets`` (unicast IPs) when the units sit on another VLAN.
+
+    Verified 2026-10-12 against two units: reply is
+    ``{'LAN_DEV_DETECT':{'ACK':'OK','product_name':'AC','thingName':'Daikin_<mac>'}}\\n``
+    sent from UDP source port 61244.
+    """
+    loop = asyncio.get_running_loop()
+    found: dict[str, DiscoveredUnit] = {}
+
+    class _Proto(asyncio.DatagramProtocol):
+        def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
+            unit = _parse_discovery_reply(data, addr[0])
+            if unit:
+                found[unit.thing_name] = unit
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.setblocking(False)
+    sock.bind(("0.0.0.0", local_port))
+    transport, _ = await loop.create_datagram_endpoint(_Proto, sock=sock)
+    try:
+        for dest in [broadcast, *(targets or [])]:
+            transport.sendto(DISCOVERY_MESSAGE.encode(), (dest, DISCOVERY_TARGET_PORT))
+        await asyncio.sleep(timeout)
+    finally:
+        transport.close()
+    return list(found.values())
+
+
+# --- TCP client -------------------------------------------------------------------
+
+class DaikinLocalUnit:
+    """One air conditioner reachable on the LAN."""
+
+    def __init__(self, host: str, thing_name: str, unit_key: str, port: int = CONTROL_PORT) -> None:
+        self.host = host
+        self.port = port
+        self.thing_name = thing_name
+        self.unit_key = unit_key
+        _key_bytes(unit_key)  # validate early
+
+    async def _exchange(self, message: bytes, timeout: float = CONTROL_TIMEOUT) -> bytes:
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), timeout)
+        try:
+            writer.write(message)
+            await writer.drain()
+            data = b""
+            # The app waits for the socket's 'data' event; read until one complete <{...}> frame is in.
+            while True:
+                try:
+                    chunk = await asyncio.wait_for(reader.read(4096), timeout)
+                except asyncio.TimeoutError:
+                    break
+                if not chunk:
+                    break
+                data += chunk
+                if has_complete_frame(data):
+                    break
+            if not data:
+                raise DaikinLocalError(f"{self.host}:{self.port} returned no data")
+            return data
+        finally:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except OSError:
+                pass
+
+    async def async_ping(self) -> bool:
+        try:
+            data = await self._exchange(PING_MESSAGE.encode(), timeout=1.0)
+        except (OSError, asyncio.TimeoutError, DaikinLocalError):
+            return False
+        return bool(data)
+
+    async def async_get_status(self) -> dict[str, Any]:
+        raw = await self._exchange(build_get_status(self.thing_name, self.unit_key))
+        reply = parse_encrypted_reply(raw, self.unit_key)
+        return extract_state(reply)
+
+    async def async_set_status(self, state: dict[str, Any]) -> dict[str, Any]:
+        raw = await self._exchange(build_set_status(self.thing_name, self.unit_key, state))
+        try:
+            return parse_encrypted_reply(raw, self.unit_key)
+        except (DaikinKeyError, json.JSONDecodeError):
+            # Some firmwares may just ack in the clear.
+            return {"raw": raw.decode("utf-8", errors="replace")}
+
+
+# --- Helpers for the climate entity ---------------------------------------------
+
+def fan_payload(level: str, five_speed: bool = True) -> dict[str, int]:
+    table = FAN_TO_VALUE_5 if five_speed else FAN_TO_VALUE_3
+    fan, ext = table[level]
+    out = {F_FAN: fan}
+    if ext is not None:
+        out[F_FAN_EXT] = ext
+    return out
+
+
+def is_five_speed(state: dict[str, Any]) -> bool:
+    """3-speed handsets never report Set_FanExtend (verified live: Set_Fan 4/8 alone)."""
+    return F_FAN_EXT in state
+
+
+def fan_level_from_state(state: dict[str, Any], five_speed: bool | None = None) -> str | None:
+    if five_speed is None:
+        five_speed = is_five_speed(state)
+    fan = _to_int(state.get(F_FAN))
+    ext = _to_int(state.get(F_FAN_EXT))
+    table = FAN_TO_VALUE_5 if five_speed else FAN_TO_VALUE_3
+    for name, (f, e) in table.items():
+        if fan == f and (e is None or ext is None or e == ext):
+            return name
+    return None
+
+
+def _to_int(value: Any) -> int | None:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
