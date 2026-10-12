@@ -6,11 +6,12 @@ requires-python = ">=3.13"
 
 [dependency-groups]
 dev = [
-  "pytest-homeassistant-custom-component",
-  "pytest-cov",
-  "mypy",
-  "homeassistant-stubs",
-  "ruff",
+  # Pinned to the Home Assistant release the integration is developed against (2026.10).
+  "pytest-homeassistant-custom-component==0.13.316",
+  "homeassistant-stubs==2026.10.0",
+  "mypy==2.4.0",
+  "pytest-cov==7.0.0",
+  "ruff==0.17.0",
 ]
 
 [tool.ruff]
