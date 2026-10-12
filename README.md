@@ -85,7 +85,22 @@ Installation parameters:
 The *Enter unit key manually* path takes the IP, the thing name (`Daikin_<mac>`) and the
 32‑character hex key instead; `tools/fetch_unit_keys.py` prints both for every unit on an account.
 
-There are no options after setup. Use *Reconfigure* on the entry to change address, port or name.
+Use *Reconfigure* on the entry to change address, port or name.
+
+### Options (Configure)
+
+The feature set is detected from your GO DAIKIN account at setup (the cloud shadow carries
+`Bar_*`/`Ena_*`/`Inf_*` flags; the local status does not). *Configure* on the entry lets you override it:
+
+| Option | Meaning | Default |
+|---|---|---|
+| Modes the unit supports | Which of cool, dry, fan, heat, auto the climate entity offers | Detected; cool + dry + fan for entries without detection |
+| Presets the unit supports | boost (Turbo), silent, sleep | Detected from `Ena_Turbo`, `Ena_Silent`, `Bar_Sleep` |
+| Fan speed steps | 3 or 5 | Detected from the handset type (`Inf_IDAlgo`) |
+| Vertical swing | Whether swing is offered | Detected from `Bar_Swing` |
+
+Cooling-only units (common in Malaysia and Singapore) have no heat or auto mode; selecting one
+would be silently ignored by the unit, so those modes are hidden.
 
 ## Data updates
 

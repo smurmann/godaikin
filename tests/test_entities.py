@@ -54,6 +54,7 @@ async def test_climate_state_mapping(hass: HomeAssistant, setup_entry: MockConfi
     assert state.attributes["swing_modes"] == ["off", "vertical"]
     assert state.attributes["preset_mode"] == "none"
     assert state.attributes["preset_modes"] == ["none", "boost", "silent", "sleep"]
+    assert state.attributes["hvac_modes"] == ["off", "cool", "dry", "fan_only"]  # conservative default
     assert state.attributes["min_temp"] == 16
     assert state.attributes["max_temp"] == 30
     assert "current_temperature" in state.attributes
@@ -65,8 +66,6 @@ async def test_climate_state_mapping(hass: HomeAssistant, setup_entry: MockConfi
         (SERVICE_SET_HVAC_MODE, {ATTR_HVAC_MODE: HVACMode.OFF}, {"Set_OnOff": 0}),
         (SERVICE_SET_HVAC_MODE, {ATTR_HVAC_MODE: HVACMode.DRY}, {"Set_OnOff": 1, "Set_Mode": 4}),
         (SERVICE_SET_HVAC_MODE, {ATTR_HVAC_MODE: HVACMode.FAN_ONLY}, {"Set_OnOff": 1, "Set_Mode": 2}),
-        (SERVICE_SET_HVAC_MODE, {ATTR_HVAC_MODE: HVACMode.HEAT}, {"Set_OnOff": 1, "Set_Mode": 8}),
-        (SERVICE_SET_HVAC_MODE, {ATTR_HVAC_MODE: HVACMode.AUTO}, {"Set_OnOff": 1, "Set_Mode": 10}),
         (SERVICE_TURN_ON, {}, {"Set_OnOff": 1}),
         (SERVICE_TURN_OFF, {}, {"Set_OnOff": 0}),
         (SERVICE_SET_TEMPERATURE, {ATTR_TEMPERATURE: 23.6}, {"Set_Temp": 24}),

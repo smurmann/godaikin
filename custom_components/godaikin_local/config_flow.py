@@ -17,13 +17,30 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.core import callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
+from .capabilities import resolve
 from .cloud import CloudAuthError, CloudError, CloudUnit, GoDaikinCloud
-from .const import CONF_FIVE_SPEED, CONF_THING_NAME, CONF_UNIT_KEY, DEFAULT_PORT, DOMAIN
+from .const import (
+    ALL_MODES,
+    ALL_PRESETS,
+    CONF_CAPABILITIES,
+    CONF_FIVE_SPEED,
+    CONF_THING_NAME,
+    CONF_UNIT_KEY,
+    DEFAULT_PORT,
+    DOMAIN,
+    FAN_SPEED_CHOICES,
+    OPT_FAN_SPEEDS,
+    OPT_HVAC_MODES,
+    OPT_PRESETS,
+    OPT_SWING,
+)
 from .protocol import DaikinKeyError, DaikinLocalError, DaikinLocalUnit, async_discover
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,6 +65,11 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     MINOR_VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> GoDaikinOptionsFlow:
+        return GoDaikinOptionsFlow()
 
     def __init__(self) -> None:
         self._units: dict[str, CloudUnit] = {}
@@ -155,6 +177,7 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_UNIT_KEY: self._chosen.key,
                 CONF_NAME: user_input[CONF_NAME],
                 CONF_FIVE_SPEED: user_input[CONF_FIVE_SPEED],
+                CONF_CAPABILITIES: self._chosen.capabilities,
             }
             errors = await self._validate_local(data)
             if not errors:
@@ -208,7 +231,9 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                 if unit is None or not unit.key:
                     errors["base"] = "unit_not_in_account"
                 else:
-                    return self.async_update_reload_and_abort(entry, data_updates={CONF_UNIT_KEY: unit.key})
+                    return self.async_update_reload_and_abort(
+                        entry, data_updates={CONF_UNIT_KEY: unit.key, CONF_CAPABILITIES: unit.capabilities}
+                    )
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=STEP_CLOUD_SCHEMA,
@@ -249,3 +274,25 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         except (DaikinLocalError, OSError, TimeoutError, ValueError):
             return {"base": "cannot_connect"}
         return {}
+
+
+class GoDaikinOptionsFlow(OptionsFlow):
+    """Let the user override the detected feature set (modes, presets, fan speeds, swing)."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        caps = resolve(self.config_entry)
+        schema = vol.Schema(
+            {
+                vol.Required(OPT_HVAC_MODES, default=list(caps.hvac_modes)): cv.multi_select(
+                    {m: m for m in ALL_MODES}
+                ),
+                vol.Required(OPT_PRESETS, default=list(caps.presets)): cv.multi_select(
+                    {p: p for p in ALL_PRESETS}
+                ),
+                vol.Required(OPT_FAN_SPEEDS, default=str(caps.fan_speeds)): vol.In(FAN_SPEED_CHOICES),
+                vol.Required(OPT_SWING, default=caps.swing): bool,
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)

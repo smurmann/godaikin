@@ -49,6 +49,52 @@ class CloudUnit:
     name: str
     raw: dict[str, Any]
 
+    @property
+    def capabilities(self) -> dict[str, Any]:
+        return capabilities_from_shadow(self.raw)
+
+
+def capabilities_from_shadow(shadow: dict[str, Any]) -> dict[str, Any]:
+    """Derive what the unit supports from the cloud shadow's Bar_* / Ena_* / Inf_* flags.
+
+    Verified live: a cooling-only Malaysian unit reports Bar_HeatM=1, Bar_AutoM=1 and
+    Bar_CoolM=Bar_DryM=Bar_FanM=0; Ena_Turbo/Ena_Silent=1; Inf_IDAlgo=0 (the app's 5-speed
+    'DAMA' handset, 1 = 3-speed 'DIL').  The local status document carries none of this.
+    """
+
+    def flag(name: str, default: int = 0) -> int:
+        try:
+            return int(shadow.get(name, default))
+        except (TypeError, ValueError):
+            return default
+
+    modes = [
+        m
+        for m, bar in (
+            ("cool", "Bar_CoolM"),
+            ("dry", "Bar_DryM"),
+            ("fan", "Bar_FanM"),
+            ("heat", "Bar_HeatM"),
+            ("auto", "Bar_AutoM"),
+        )
+        if not flag(bar)
+    ]
+    presets = []
+    if flag("Ena_Turbo"):
+        presets.append("boost")
+    if flag("Ena_Silent"):
+        presets.append("silent")
+    if not flag("Bar_Sleep"):
+        presets.append("sleep")
+    return {
+        "hvac_modes": modes or ["cool"],
+        "presets": presets,
+        "fan_speeds": 3 if flag("Inf_IDAlgo") == 1 else 5,
+        "swing": not flag("Bar_Swing"),
+        "fan_auto": not flag("Bar_AutoF"),
+        "fan_low": not flag("Bar_LowF"),
+    }
+
 
 @dataclass(slots=True)
 class CloudSession:

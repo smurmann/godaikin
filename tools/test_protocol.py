@@ -121,6 +121,12 @@ def test_cloud_parsing() -> None:
     assert cloud.normalise_region("MY") == "DM"
     assert cloud.normalise_region(None) == "DM"
     assert cloud.normalise_region("DSP") == "DSP"
+    caps = cloud.capabilities_from_shadow({"Bar_HeatM": 1, "Bar_AutoM": 1, "Ena_Turbo": 1, "Inf_IDAlgo": 1})
+    assert (
+        caps["hvac_modes"] == ["cool", "dry", "fan"]
+        and caps["fan_speeds"] == 3
+        and "boost" in caps["presets"]
+    )
 
     bad = cloud.classify_http_error(
         400, '{"message":"NotAuthorizedException","error":"IncorrectUsernameOrPassword"}', "u"

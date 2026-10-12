@@ -19,7 +19,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DaikinConfigEntry
-from .const import CONF_FIVE_SPEED, CONF_THING_NAME, MAX_TEMP, MIN_TEMP
+from .capabilities import UnitCapabilities, resolve
+from .const import CONF_THING_NAME, MAX_TEMP, MIN_TEMP
 from .coordinator import DaikinLocalCoordinator
 from .entity import DaikinLocalEntity
 from .protocol import (
@@ -70,29 +71,39 @@ class DaikinLocalClimate(DaikinLocalEntity, ClimateEntity):
     _attr_target_temperature_step = 1.0
     _attr_min_temp = MIN_TEMP
     _attr_max_temp = MAX_TEMP
-    _attr_hvac_modes = [HVACMode.OFF, *HVAC_FROM_MODE.values()]
     _attr_swing_modes = [SWING_OFF, SWING_VERTICAL]
-    _attr_preset_modes = [PRESET_NONE, *PRESET_FIELDS]
-    _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.FAN_MODE
-        | ClimateEntityFeature.SWING_MODE
-        | ClimateEntityFeature.PRESET_MODE
-        | ClimateEntityFeature.TURN_ON
-        | ClimateEntityFeature.TURN_OFF
-    )
 
     def __init__(self, coordinator: DaikinLocalCoordinator, entry: DaikinConfigEntry) -> None:
         super().__init__(coordinator, entry.data[CONF_THING_NAME], "climate")
-        self._force_five = bool(entry.data.get(CONF_FIVE_SPEED, False))
+        self._caps: UnitCapabilities = resolve(entry)
+        # Only advertise what the unit supports (detected from the cloud shadow, or set in options).
+        self._attr_hvac_modes = [HVACMode.OFF, *(HVAC_FROM_MODE[m] for m in self._caps.hvac_modes)]
+        self._attr_preset_modes = [PRESET_NONE, *self._caps.presets]
+        features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.FAN_MODE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF
+        )
+        if self._caps.swing:
+            features |= ClimateEntityFeature.SWING_MODE
+        if self._caps.presets:
+            features |= ClimateEntityFeature.PRESET_MODE
+        self._attr_supported_features = features
 
     @property
     def _fan_table(self) -> dict[str, tuple[int, int | None]]:
-        return fan_table(self.state_doc, self._force_five)
+        # The local status omits Set_FanExtend, so the handset type from the cloud decides.
+        return fan_table(self.state_doc, self._caps.five_speed)
 
     @property
     def fan_modes(self) -> list[str]:
-        return list(self._fan_table)
+        modes = list(self._fan_table)
+        if not self._caps.fan_auto:
+            modes = [m for m in modes if m != "auto"]
+        if not self._caps.fan_low:
+            modes = [m for m in modes if m != "low"]
+        return modes
 
     @property
     def hvac_mode(self) -> HVACMode | None:

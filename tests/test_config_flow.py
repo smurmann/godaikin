@@ -13,8 +13,14 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.godaikin_local.cloud import CloudAuthError, CloudError
-from custom_components.godaikin_local.const import CONF_FIVE_SPEED, CONF_THING_NAME, CONF_UNIT_KEY, DOMAIN
+from custom_components.godaikin_local.cloud import CloudAuthError, CloudError, CloudUnit
+from custom_components.godaikin_local.const import (
+    CONF_CAPABILITIES,
+    CONF_FIVE_SPEED,
+    CONF_THING_NAME,
+    CONF_UNIT_KEY,
+    DOMAIN,
+)
 from custom_components.godaikin_local.protocol import DaikinKeyError, DaikinLocalError, DiscoveredUnit
 
 from .conftest import ENTRY_DATA, HOST, KEY, THING
@@ -48,7 +54,8 @@ async def test_cloud_flow_creates_entry(hass: HomeAssistant, mock_cloud: MagicMo
     result = await hass.config_entries.flow.async_configure(result["flow_id"], HOST_INPUT)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Office AC"
-    assert result["data"] == ENTRY_DATA
+    assert {k: v for k, v in result["data"].items() if k != CONF_CAPABILITIES} == ENTRY_DATA
+    assert result["data"][CONF_CAPABILITIES]["hvac_modes"]
     mock_cloud.async_login.assert_awaited_once_with("me@example.com", "secret")
 
 
@@ -213,13 +220,12 @@ async def test_reauth_flow(hass: HomeAssistant, config_entry: MockConfigEntry, m
     assert result["errors"] == {"base": "cannot_connect"}
 
     mock_cloud.async_login.side_effect = None
-    mock_cloud.async_get_units.return_value = [
-        type("U", (), {"thing_name": THING, "key": "ff" * 16, "name": "x"})()
-    ]
+    mock_cloud.async_get_units.return_value = [CloudUnit(THING, "ff" * 16, "x", {"Bar_HeatM": 1})]
     result = await hass.config_entries.flow.async_configure(flow_id, CREDS)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
     assert config_entry.data[CONF_UNIT_KEY] == "ff" * 16
+    assert "heat" not in config_entry.data[CONF_CAPABILITIES]["hvac_modes"]
 
 
 @pytest.mark.usefixtures("mock_unit", "mock_discovery")

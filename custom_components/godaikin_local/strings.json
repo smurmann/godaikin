@@ -116,6 +116,26 @@
       "unknown": "Unexpected error."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Supported features",
+        "description": "Detected from your GO DAIKIN account at setup. Adjust if the unit actually supports more or less than shown.",
+        "data": {
+          "hvac_modes": "Modes the unit supports",
+          "presets": "Presets the unit supports",
+          "fan_speeds": "Fan speed steps",
+          "swing": "Vertical swing"
+        },
+        "data_description": {
+          "hvac_modes": "Cooling-only units have cool, dry and fan; heat and auto only exist on heat-pump models.",
+          "presets": "boost = Turbo, silent, sleep.",
+          "fan_speeds": "3 for remotes with three fan bars, 5 for remotes with five.",
+          "swing": "Untick if the unit has no motorised louver."
+        }
+      }
+    }
+  },
   "exceptions": {
     "command_failed": {
       "message": "Command to the GO DAIKIN unit at {host} failed: {error}"
