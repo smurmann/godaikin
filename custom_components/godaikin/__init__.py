@@ -1,4 +1,4 @@
-"""GO DAIKIN Local: LAN control of Daikin Malaysia/Singapore/Indonesia Wi-Fi air conditioners.
+"""GO DAIKIN: LAN control of Daikin Malaysia/Singapore/Indonesia Wi-Fi air conditioners.
 
 Control is LAN-only.  The cloud is contacted during setup to obtain each unit's local key
 and, only if the user opts in, polled for sensor values the unit does not expose locally.

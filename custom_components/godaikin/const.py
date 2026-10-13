@@ -1,10 +1,10 @@
-"""Constants for the GO DAIKIN Local integration."""
+"""Constants for the GO DAIKIN integration."""
 
 from __future__ import annotations
 
 from datetime import timedelta
 
-DOMAIN = "godaikin_local"
+DOMAIN = "godaikin"
 MANUFACTURER = "Daikin"
 MODEL = "GO DAIKIN Wi-Fi air conditioner"
 

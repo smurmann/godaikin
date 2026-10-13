@@ -18,15 +18,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.godaikin_local import cloud as cloud_mod
-from custom_components.godaikin_local.cloud import (
+from custom_components.godaikin import cloud as cloud_mod
+from custom_components.godaikin.cloud import (
     CloudAuthError,
     CloudError,
     CloudSession,
     CloudUnit,
     GoDaikinCloud,
 )
-from custom_components.godaikin_local.const import (
+from custom_components.godaikin.const import (
     CONF_CLOUD_REFRESH_TOKEN,
     CONF_CLOUD_SUBJECT,
     DOMAIN,
@@ -37,7 +37,7 @@ from custom_components.godaikin_local.const import (
     OPT_PRESETS,
     OPT_SWING,
 )
-from custom_components.godaikin_local.diagnostics import async_get_config_entry_diagnostics
+from custom_components.godaikin.diagnostics import async_get_config_entry_diagnostics
 
 from .conftest import ENTRY_DATA, THING
 
@@ -93,8 +93,8 @@ def mock_cloud_api() -> Generator[MagicMock]:
     api.async_get_shadows = AsyncMock(return_value={THING: dict(SHADOW)})
     api.async_get_units = AsyncMock(return_value=[MagicMock(thing_name=THING, key="k")])
     with (
-        patch("custom_components.godaikin_local.cloud_coordinator.GoDaikinCloud", return_value=api),
-        patch("custom_components.godaikin_local.config_flow.GoDaikinCloud", return_value=api),
+        patch("custom_components.godaikin.cloud_coordinator.GoDaikinCloud", return_value=api),
+        patch("custom_components.godaikin.config_flow.GoDaikinCloud", return_value=api),
     ):
         yield api
 

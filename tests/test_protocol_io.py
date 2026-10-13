@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from custom_components.godaikin_local import protocol as p
+from custom_components.godaikin import protocol as p
 
 # The HA test harness blocks sockets by default; these tests talk to an in-process fake unit.
 pytestmark = pytest.mark.enable_socket

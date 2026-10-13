@@ -1,8 +1,8 @@
-<p align="center"><img src="docs/icon.png" width="128" alt="GO DAIKIN Local"></p>
+<p align="center"><img src="docs/icon.png" width="128" alt="GO DAIKIN"></p>
 
-# GO DAIKIN Local
+# GO DAIKIN
 
-[![Validate](https://github.com/smurmann/godaikin-local/actions/workflows/validate.yml/badge.svg)](https://github.com/smurmann/godaikin-local/actions/workflows/validate.yml)
+[![Validate](https://github.com/smurmann/godaikin/actions/workflows/validate.yml/badge.svg)](https://github.com/smurmann/godaikin/actions/workflows/validate.yml)
 [![HACS](https://img.shields.io/badge/HACS-custom-41BDF5.svg)](https://hacs.xyz)
 
 Cloud-free Home Assistant integration for Daikin air conditioners that are normally driven by
@@ -16,7 +16,7 @@ which behaviour has been verified on real units.
 
 The integration follows Home Assistant's
 [integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/);
-the rule-by-rule status is in [`quality_scale.yaml`](custom_components/godaikin_local/quality_scale.yaml).
+the rule-by-rule status is in [`quality_scale.yaml`](custom_components/godaikin/quality_scale.yaml).
 
 ## Supported devices
 
@@ -60,17 +60,17 @@ download with the key redacted.
 
 ### HACS (recommended)
 
-1. HACS → Integrations → ⋮ → *Custom repositories* → add `https://github.com/smurmann/godaikin-local`, category *Integration*.
-2. Install **GO DAIKIN Local** and restart Home Assistant.
+1. HACS → Integrations → ⋮ → *Custom repositories* → add `https://github.com/smurmann/godaikin`, category *Integration*.
+2. Install **GO DAIKIN** and restart Home Assistant.
 
 ### Manual
 
-Copy `custom_components/godaikin_local` into your `config/custom_components/` and restart.
+Copy `custom_components/godaikin` into your `config/custom_components/` and restart.
 
 ## Setup
 
 Home Assistant discovers units automatically when they obtain a DHCP lease and shows them under
-*Settings → Devices & services → Discovered*. Otherwise choose *Add integration → GO DAIKIN Local*.
+*Settings → Devices & services → Discovered*. Otherwise choose *Add integration → GO DAIKIN*.
 
 Installation parameters:
 
@@ -198,14 +198,14 @@ Enable debug logging with:
 ```yaml
 logger:
   logs:
-    custom_components.godaikin_local: debug
+    custom_components.godaikin: debug
 ```
 
 ## Removal
 
-Delete the integration entry under *Settings → Devices & services → GO DAIKIN Local*. Nothing
+Delete the integration entry under *Settings → Devices & services → GO DAIKIN*. Nothing
 is left on the unit or in the cloud; the unit keeps working with the app. To remove the code,
-uninstall it in HACS (or delete `custom_components/godaikin_local`) and restart.
+uninstall it in HACS (or delete `custom_components/godaikin`) and restart.
 
 ## Command-line tools
 
@@ -228,7 +228,7 @@ Diagnostics downloads redact them.
 
 ## Brand assets
 
-The integration ships its own icon and logo in `custom_components/godaikin_local/brand/`, which Home Assistant 2026.3 and newer serve locally (the central brands repository no longer accepts custom integrations). Home Assistant 2025.1 or newer is required by the integration itself; versions before 2026.3 simply show a generic icon.
+The integration ships its own icon and logo in `custom_components/godaikin/brand/`, which Home Assistant 2026.3 and newer serve locally (the central brands repository no longer accepts custom integrations). Home Assistant 2025.1 or newer is required by the integration itself; versions before 2026.3 simply show a generic icon.
 
 ## Development
 

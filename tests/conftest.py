@@ -11,9 +11,9 @@ from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.godaikin_local.cloud import CloudUnit
-from custom_components.godaikin_local.const import CONF_FIVE_SPEED, CONF_THING_NAME, CONF_UNIT_KEY, DOMAIN
-from custom_components.godaikin_local.protocol import DiscoveredUnit
+from custom_components.godaikin.cloud import CloudUnit
+from custom_components.godaikin.const import CONF_FIVE_SPEED, CONF_THING_NAME, CONF_UNIT_KEY, DOMAIN
+from custom_components.godaikin.protocol import DiscoveredUnit
 
 THING = "Daikin_aabbccddeeff"
 KEY = "00112233445566778899aabbccddeeff"
@@ -72,8 +72,8 @@ def mock_unit(status: dict[str, Any]) -> Generator[MagicMock]:
 
     unit.async_set_status = AsyncMock(side_effect=_apply)
     with (
-        patch("custom_components.godaikin_local.DaikinLocalUnit", return_value=unit),
-        patch("custom_components.godaikin_local.config_flow.DaikinLocalUnit", return_value=unit),
+        patch("custom_components.godaikin.DaikinLocalUnit", return_value=unit),
+        patch("custom_components.godaikin.config_flow.DaikinLocalUnit", return_value=unit),
     ):
         yield unit
 
@@ -81,7 +81,7 @@ def mock_unit(status: dict[str, Any]) -> Generator[MagicMock]:
 @pytest.fixture
 def mock_discovery() -> Generator[AsyncMock]:
     with patch(
-        "custom_components.godaikin_local.config_flow.async_discover",
+        "custom_components.godaikin.config_flow.async_discover",
         AsyncMock(return_value=[DiscoveredUnit(thing_name=THING, host=HOST, raw={})]),
     ) as discover:
         yield discover
@@ -97,7 +97,7 @@ def mock_cloud() -> Generator[MagicMock]:
             CloudUnit(thing_name="Daikin_000000000000", key=None, name="Keyless", raw={}),
         ]
     )
-    with patch("custom_components.godaikin_local.config_flow.GoDaikinCloud", return_value=cloud):
+    with patch("custom_components.godaikin.config_flow.GoDaikinCloud", return_value=cloud):
         yield cloud
 
 

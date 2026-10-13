@@ -1,4 +1,4 @@
-"""Config flow for GO DAIKIN Local.
+"""Config flow for GO DAIKIN.
 
 Flow
 ----

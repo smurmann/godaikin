@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 
-from custom_components.godaikin_local import cloud, protocol
+from custom_components.godaikin import cloud, protocol
 
 _suite = importlib.import_module("tools.test_protocol")
 _suite.p = protocol

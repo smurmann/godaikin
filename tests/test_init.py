@@ -14,9 +14,9 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.godaikin_local.const import DOMAIN, KEY_FAILURES_BEFORE_REAUTH, SCAN_INTERVAL
-from custom_components.godaikin_local.diagnostics import async_get_config_entry_diagnostics
-from custom_components.godaikin_local.protocol import DaikinKeyError, DaikinLocalError
+from custom_components.godaikin.const import DOMAIN, KEY_FAILURES_BEFORE_REAUTH, SCAN_INTERVAL
+from custom_components.godaikin.diagnostics import async_get_config_entry_diagnostics
+from custom_components.godaikin.protocol import DaikinKeyError, DaikinLocalError
 
 from .conftest import THING
 

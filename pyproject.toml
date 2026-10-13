@@ -1,6 +1,6 @@
 [project]
-name = "godaikin-local"
-version = "0.5.0"
+name = "godaikin"
+version = "0.6.0"
 description = "Cloud-free Home Assistant integration for GO DAIKIN air conditioners"
 requires-python = ">=3.13.2"
 
@@ -17,7 +17,7 @@ dev = [
 [tool.ruff]
 target-version = "py313"
 line-length = 110
-src = ["custom_components/godaikin_local", "tools", "tests"]
+src = ["custom_components/godaikin", "tools", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ASYNC", "PL", "N", "C4", "T20"]
@@ -33,16 +33,16 @@ ignore = [
 "tests/*" = ["PLR0915", "PLR0917", "S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["custom_components.godaikin_local"]
+known-first-party = ["custom_components.godaikin"]
 combine-as-imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-p no:cacheprovider --cov=custom_components/godaikin_local --cov-report=term-missing --cov-fail-under=95"
+addopts = "-p no:cacheprovider --cov=custom_components/godaikin --cov-report=term-missing --cov-fail-under=95"
 
 [tool.coverage.run]
-omit = ["custom_components/godaikin_local/cloud.py"]  # covered by tests through mocks; HTTP path needs the vendor API
+omit = ["custom_components/godaikin/cloud.py"]  # covered by tests through mocks; HTTP path needs the vendor API
 branch = true
 
 [tool.mypy]
@@ -50,7 +50,7 @@ python_version = "3.13"
 strict = true
 warn_unreachable = true
 show_error_codes = true
-files = ["custom_components/godaikin_local"]
+files = ["custom_components/godaikin"]
 
 [[tool.mypy.overrides]]
 module = ["cryptography.*", "voluptuous.*", "aiohttp.*"]

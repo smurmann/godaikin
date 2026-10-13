@@ -13,15 +13,15 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.godaikin_local.cloud import CloudAuthError, CloudError, CloudUnit
-from custom_components.godaikin_local.const import (
+from custom_components.godaikin.cloud import CloudAuthError, CloudError, CloudUnit
+from custom_components.godaikin.const import (
     CONF_CAPABILITIES,
     CONF_FIVE_SPEED,
     CONF_THING_NAME,
     CONF_UNIT_KEY,
     DOMAIN,
 )
-from custom_components.godaikin_local.protocol import DaikinKeyError, DaikinLocalError, DiscoveredUnit
+from custom_components.godaikin.protocol import DaikinKeyError, DaikinLocalError, DiscoveredUnit
 
 from .conftest import ENTRY_DATA, HOST, KEY, THING
 
@@ -102,7 +102,7 @@ async def test_cloud_all_configured(hass: HomeAssistant, config_entry: MockConfi
 async def test_cloud_discovery_unavailable_still_works(hass: HomeAssistant, mock_unit: MagicMock) -> None:
     """When UDP discovery cannot bind, the host field is simply empty."""
     with patch(
-        "custom_components.godaikin_local.config_flow.async_discover",
+        "custom_components.godaikin.config_flow.async_discover",
         AsyncMock(side_effect=OSError("no socket")),
     ):
         result = await _start(hass)
@@ -179,7 +179,7 @@ async def test_dhcp_unit_not_in_account(hass: HomeAssistant, mock_cloud: MagicMo
 
 
 async def test_dhcp_ignores_non_daikin_device(hass: HomeAssistant) -> None:
-    with patch("custom_components.godaikin_local.config_flow.async_discover", AsyncMock(return_value=[])):
+    with patch("custom_components.godaikin.config_flow.async_discover", AsyncMock(return_value=[])):
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": config_entries.SOURCE_DHCP}, data=_dhcp()
         )
@@ -192,7 +192,7 @@ async def test_dhcp_updates_host_of_configured_unit(
     hass: HomeAssistant, config_entry: MockConfigEntry
 ) -> None:
     with patch(
-        "custom_components.godaikin_local.config_flow.async_discover",
+        "custom_components.godaikin.config_flow.async_discover",
         AsyncMock(return_value=[DiscoveredUnit(thing_name=THING, host="192.0.2.99", raw={})]),
     ):
         result = await hass.config_entries.flow.async_init(

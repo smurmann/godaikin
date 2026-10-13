@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-Local-only Home Assistant integration for GO DAIKIN air conditioners. The protocol was
+Local-first Home Assistant integration for GO DAIKIN air conditioners (LAN control, optional cloud sensors). The protocol was
 reverse-engineered from the app; `docs/PROTOCOL.md` is the evidence trail and lists which
 behaviour is verified on hardware and which is still inferred. Read it before changing
-`custom_components/godaikin_local/protocol.py`.
+`custom_components/godaikin/protocol.py`.
 
 ## Working rules
 

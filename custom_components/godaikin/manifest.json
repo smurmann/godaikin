@@ -1,6 +1,6 @@
 {
-  "domain": "godaikin_local",
-  "name": "GO DAIKIN Local",
+  "domain": "godaikin",
+  "name": "GO DAIKIN",
   "codeowners": ["@smurmann"],
   "config_flow": true,
   "dependencies": [],
@@ -8,10 +8,10 @@
     { "macaddress": "38E7C0*" },
     { "macaddress": "A8169D*" }
   ],
-  "documentation": "https://github.com/smurmann/godaikin-local",
+  "documentation": "https://github.com/smurmann/godaikin",
   "integration_type": "device",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/smurmann/godaikin-local/issues",
+  "issue_tracker": "https://github.com/smurmann/godaikin/issues",
   "requirements": [],
-  "version": "0.5.0"
+  "version": "0.6.0"
 }

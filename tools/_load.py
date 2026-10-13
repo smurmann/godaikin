@@ -11,12 +11,12 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-COMPONENT_DIR = Path(__file__).resolve().parents[1] / "custom_components" / "godaikin_local"
+COMPONENT_DIR = Path(__file__).resolve().parents[1] / "custom_components" / "godaikin"
 
 
 def load(name: str) -> ModuleType:
-    """Return ``custom_components/godaikin_local/<name>.py`` as a module (cached in sys.modules)."""
-    qualified = f"godaikin_local_tools.{name}"
+    """Return ``custom_components/godaikin/<name>.py`` as a module (cached in sys.modules)."""
+    qualified = f"godaikin_tools.{name}"
     if qualified in sys.modules:
         return sys.modules[qualified]
     spec = importlib.util.spec_from_file_location(qualified, COMPONENT_DIR / f"{name}.py")

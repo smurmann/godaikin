@@ -1,1 +1,1 @@
-"""Tests for the GO DAIKIN Local integration."""
+"""Tests for the GO DAIKIN integration."""

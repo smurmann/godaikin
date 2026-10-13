@@ -12,9 +12,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.godaikin_local.capabilities import resolve
-from custom_components.godaikin_local.cloud import CloudUnit, capabilities_from_shadow
-from custom_components.godaikin_local.const import (
+from custom_components.godaikin.capabilities import resolve
+from custom_components.godaikin.cloud import CloudUnit, capabilities_from_shadow
+from custom_components.godaikin.const import (
     CONF_CAPABILITIES,
     CONF_FIVE_SPEED,
     DOMAIN,

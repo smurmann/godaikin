@@ -30,7 +30,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.godaikin_local.const import CONF_FIVE_SPEED, DOMAIN
+from custom_components.godaikin.const import CONF_FIVE_SPEED, DOMAIN
 
 from .conftest import ENTRY_DATA, THING
 
