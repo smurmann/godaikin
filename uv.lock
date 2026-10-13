@@ -1173,8 +1173,8 @@ wheels = [
 ]
 
 [[package]]
-name = "godaikin-local"
-version = "0.3.0"
+name = "godaikin"
+version = "0.6.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

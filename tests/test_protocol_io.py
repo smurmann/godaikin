@@ -13,7 +13,7 @@ import pytest
 from custom_components.godaikin import protocol as p
 
 # The HA test harness blocks sockets by default; these tests talk to an in-process fake unit.
-pytestmark = pytest.mark.enable_socket
+pytestmark = [pytest.mark.enable_socket, pytest.mark.usefixtures("socket_enabled")]
 
 KEY = "00112233445566778899aabbccddeeff"
 THING = "Daikin_aabbccddeeff"
@@ -57,7 +57,7 @@ class FakeUnit:
 
 
 @pytest.fixture
-async def fake_unit() -> AsyncGenerator[tuple[FakeUnit, int]]:
+async def fake_unit(socket_enabled: None) -> AsyncGenerator[tuple[FakeUnit, int]]:
     unit = FakeUnit()
     server = await asyncio.start_server(unit.handle, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]

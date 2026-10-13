@@ -11,7 +11,7 @@ from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.godaikin.cloud import CloudUnit
+from custom_components.godaikin.cloud import CloudSession, CloudUnit
 from custom_components.godaikin.const import CONF_FIVE_SPEED, CONF_THING_NAME, CONF_UNIT_KEY, DOMAIN
 from custom_components.godaikin.protocol import DiscoveredUnit
 
@@ -115,3 +115,55 @@ async def setup_entry(
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
     yield config_entry
+
+
+SUBJECT = "6417645e-0000-4984-bdfa-4caf96c7e49b"
+
+
+def cloud_session(**over: Any) -> CloudSession:
+    base = {
+        "id_token": "t",
+        "access_token": "a",
+        "user_id": "u1",
+        "region": "DM",
+        "username": SUBJECT,
+        "expires_at": 1e18,  # never expires unless a test overrides it (freezegun shifts monotonic)
+        "refresh_token": "rt-1",
+        "subject": SUBJECT,
+    }
+    return CloudSession(**{**base, **over})
+
+
+CLOUD_SHADOW: dict[str, Any] = {
+    "thingName": THING,
+    "eventType": "connected",
+    "Sta_IDRoomTemp": 30,
+    "Sta_IDCoilTemp": 26,
+    "Sta_ODAirTemp": 0,
+    "Sta_ODCoilTemp": -30,
+    "Sta_ODDiscTemp": 0,
+    "Sta_ODCpFreq": 0,
+    "Sta_ODPwrCon": 0,
+    "Sta_IDRh": 0,
+    "Sta_DCBus": 325,
+    "Sta_CpRT": 12,
+    "Sta_ErrCode": 0,
+    "Sta_CpOnOff": 1,
+    "Sta_HumanDct": 0,
+    "Set_OnOff": 1,
+}
+
+
+@pytest.fixture
+def mock_cloud_api() -> Generator[MagicMock]:
+    """Fake GoDaikinCloud for the cloud coordinator and the options/reauth flows."""
+    api = MagicMock()
+    api.async_refresh = AsyncMock(return_value=cloud_session())
+    api.async_login = AsyncMock(return_value=cloud_session())
+    api.async_get_shadows = AsyncMock(return_value={THING: dict(CLOUD_SHADOW)})
+    api.async_get_units = AsyncMock(return_value=[MagicMock(thing_name=THING, key="k")])
+    with (
+        patch("custom_components.godaikin.cloud_coordinator.GoDaikinCloud", return_value=api),
+        patch("custom_components.godaikin.config_flow.GoDaikinCloud", return_value=api),
+    ):
+        yield api

@@ -43,11 +43,14 @@ from .const import (
     MIN_CLOUD_INTERVAL,
     OPT_CLOUD,
     OPT_CLOUD_INTERVAL,
+    OPT_FAN_POWER,
     OPT_FAN_SPEEDS,
     OPT_HVAC_MODES,
     OPT_PRESETS,
+    OPT_RATED_POWER,
     OPT_SWING,
 )
+from .energy import DEFAULT_FAN_POWER_W, default_rated_power
 from .protocol import DaikinKeyError, DaikinLocalError, DaikinLocalUnit, async_discover
 
 _LOGGER = logging.getLogger(__name__)
@@ -321,6 +324,18 @@ class GoDaikinOptionsFlow(OptionsFlow):
                 vol.Required(
                     OPT_CLOUD_INTERVAL, default=int(opts.get(OPT_CLOUD_INTERVAL, DEFAULT_CLOUD_INTERVAL))
                 ): vol.All(vol.Coerce(int), vol.Range(min=MIN_CLOUD_INTERVAL, max=MAX_CLOUD_INTERVAL)),
+                vol.Required(
+                    OPT_RATED_POWER,
+                    default=int(
+                        opts.get(
+                            OPT_RATED_POWER,
+                            default_rated_power(self.config_entry.data.get(CONF_CAPABILITIES)),
+                        )
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=50, max=10000)),
+                vol.Required(
+                    OPT_FAN_POWER, default=int(opts.get(OPT_FAN_POWER, DEFAULT_FAN_POWER_W))
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=500)),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

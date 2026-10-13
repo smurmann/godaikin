@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import json
 import time
-from collections.abc import Generator
 from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -22,7 +21,6 @@ from custom_components.godaikin import cloud as cloud_mod
 from custom_components.godaikin.cloud import (
     CloudAuthError,
     CloudError,
-    CloudSession,
     CloudUnit,
     GoDaikinCloud,
 )
@@ -39,9 +37,8 @@ from custom_components.godaikin.const import (
 )
 from custom_components.godaikin.diagnostics import async_get_config_entry_diagnostics
 
-from .conftest import ENTRY_DATA, THING
+from .conftest import ENTRY_DATA, SUBJECT, THING, cloud_session as _session
 
-SUBJECT = "6417645e-0000-4984-bdfa-4caf96c7e49b"
 CLOUD_DATA = {**ENTRY_DATA, CONF_CLOUD_REFRESH_TOKEN: "rt-1", CONF_CLOUD_SUBJECT: SUBJECT}
 CLOUD_OPTIONS = {OPT_CLOUD: True, OPT_CLOUD_INTERVAL: 10}
 
@@ -69,34 +66,6 @@ SHADOW: dict[str, Any] = {
 def _jwt(claims: dict[str, Any]) -> str:
     payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
     return f"h.{payload}.s"
-
-
-def _session(**over: Any) -> CloudSession:
-    base = {
-        "id_token": "t",
-        "access_token": "a",
-        "user_id": "u1",
-        "region": "DM",
-        "username": SUBJECT,
-        "expires_at": 1e18,  # never expires unless a test overrides it (freezegun shifts monotonic)
-        "refresh_token": "rt-1",
-        "subject": SUBJECT,
-    }
-    return CloudSession(**{**base, **over})
-
-
-@pytest.fixture
-def mock_cloud_api() -> Generator[MagicMock]:
-    api = MagicMock()
-    api.async_refresh = AsyncMock(return_value=_session())
-    api.async_login = AsyncMock(return_value=_session())
-    api.async_get_shadows = AsyncMock(return_value={THING: dict(SHADOW)})
-    api.async_get_units = AsyncMock(return_value=[MagicMock(thing_name=THING, key="k")])
-    with (
-        patch("custom_components.godaikin.cloud_coordinator.GoDaikinCloud", return_value=api),
-        patch("custom_components.godaikin.config_flow.GoDaikinCloud", return_value=api),
-    ):
-        yield api
 
 
 @pytest.fixture

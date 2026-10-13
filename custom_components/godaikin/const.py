@@ -26,6 +26,8 @@ CONF_CLOUD_SUBJECT = "cloud_subject"  # Cognito subject id, needed to redeem the
 DEFAULT_CLOUD_INTERVAL = 10
 MIN_CLOUD_INTERVAL = 5
 MAX_CLOUD_INTERVAL = 120
+OPT_RATED_POWER = "rated_power_w"  # estimated draw with the compressor running
+OPT_FAN_POWER = "fan_power_w"  # estimated draw with only the indoor fan running
 
 ALL_MODES = ["cool", "dry", "fan", "heat", "auto"]
 DEFAULT_MODES = ["cool", "dry", "fan"]  # what every GO DAIKIN unit seen so far supports

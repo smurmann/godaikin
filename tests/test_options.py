@@ -43,6 +43,7 @@ def test_capabilities_from_shadow() -> None:
         "swing": True,
         "fan_auto": True,
         "fan_low": True,
+        "capacity": 0,
     }
     heat_pump = {
         **COOL_ONLY_SHADOW,

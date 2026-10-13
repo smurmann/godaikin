@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
     PRESET_BOOST,
     PRESET_NONE,
     PRESET_SLEEP,
@@ -163,8 +164,17 @@ class DaikinLocalClimate(DaikinLocalEntity, ClimateEntity):
         await self.coordinator.async_set({F_ONOFF: 0})
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
+        payload: dict[str, Any] = {}
+        if (hvac_mode := kwargs.get(ATTR_HVAC_MODE)) is not None:
+            # climate.set_temperature may carry hvac_mode; apply it in the same command.
+            if hvac_mode == HVACMode.OFF:
+                payload[F_ONOFF] = 0
+            else:
+                payload.update({F_ONOFF: 1, F_MODE: MODE_TO_VALUE[MODE_FROM_HVAC[hvac_mode]]})
         if (temp := kwargs.get(ATTR_TEMPERATURE)) is not None:
-            await self.coordinator.async_set({F_TEMP: round(temp)})
+            payload[F_TEMP] = round(temp)
+        if payload:
+            await self.coordinator.async_set(payload)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         await self.coordinator.async_set(fan_payload(fan_mode, self._fan_table))
