@@ -95,7 +95,6 @@ def capabilities_from_shadow(shadow: dict[str, Any]) -> dict[str, Any]:
         "swing": not flag("Bar_Swing"),
         "fan_auto": not flag("Bar_AutoF"),
         "fan_low": not flag("Bar_LowF"),
-        "capacity": flag("Inf_IDCap"),  # Daikin capacity class, e.g. 35 = 3.5 kW; sizes the power estimate
     }
 
 

@@ -56,8 +56,6 @@
       "cloud_error_code": { "default": "mdi:alert-circle-outline" },
       "cloud_discharge_temperature": { "default": "mdi:thermometer-high" },
       "error_code": { "default": "mdi:alert-circle-outline" },
-      "estimated_power": { "default": "mdi:flash-outline" },
-      "estimated_energy": { "default": "mdi:lightning-bolt-outline" },
       "power": { "default": "mdi:flash" }
     }
   }

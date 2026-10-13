@@ -127,9 +127,7 @@
           "fan_speeds": "Fan speed steps",
           "swing": "Vertical swing",
           "cloud_sensors": "Cloud sensors (room temperature, coil/outdoor temperatures, power, compressor data)",
-          "cloud_interval": "Cloud poll interval (minutes)",
-          "rated_power_w": "Rated input power (W)",
-          "fan_power_w": "Indoor fan power (W)"
+          "cloud_interval": "Cloud poll interval (minutes)"
         },
         "data_description": {
           "hvac_modes": "Cooling-only units have cool, dry and fan; heat and auto only exist on heat-pump models.",
@@ -137,9 +135,7 @@
           "fan_speeds": "3 for remotes with three fan bars, 5 for remotes with five.",
           "swing": "Untick if the unit has no motorised louver.",
           "cloud_sensors": "Opt-in. Control stays local; only sensor values are read from your GO DAIKIN account. Keeps a revocable refresh token, never your password.",
-          "cloud_interval": "How often to read the cloud shadow (5–120 minutes). One call covers every unit on the account and is shared between them; 10 minutes keeps well clear of API limits.",
-          "rated_power_w": "Used for the estimated power/energy sensors while the compressor runs. Defaults from the unit's capacity class; check the nameplate or a plug meter.",
-          "fan_power_w": "Draw with only the indoor fan running (fan-only mode, or compressor paused). Typical 30–60 W."
+          "cloud_interval": "How often to read the cloud shadow (5–120 minutes). One call covers every unit on the account and is shared between them; 10 minutes keeps well clear of API limits."
         }
       },
       "cloud_login": {
@@ -226,9 +222,7 @@
       "cloud_compressor_frequency": { "name": "Compressor frequency" },
       "cloud_compressor_runtime": { "name": "Compressor runtime" },
       "cloud_dc_bus_voltage": { "name": "DC bus voltage" },
-      "cloud_error_code": { "name": "Error code" },
-      "estimated_power": { "name": "Estimated power" },
-      "estimated_energy": { "name": "Estimated energy" }
+      "cloud_error_code": { "name": "Error code" }
     },
     "binary_sensor": {
       "compressor": { "name": "Compressor" },

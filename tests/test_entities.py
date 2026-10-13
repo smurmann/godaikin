@@ -209,3 +209,23 @@ async def test_sensors_only_for_reported_fields(
     assert hass.states.get("sensor.office_ac_error_code").state == "E0"
     assert hass.states.get("sensor.office_ac_humidity").state == "unknown"
     assert hass.states.get("sensor.office_ac_power") is None
+
+
+async def test_set_temperature_with_hvac_mode(
+    hass: HomeAssistant, setup_entry: MockConfigEntry, mock_unit: MagicMock
+) -> None:
+    """climate.set_temperature may carry hvac_mode; it must go out in the same command."""
+    await _call(
+        hass,
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        **{ATTR_ENTITY_ID: CLIMATE, ATTR_TEMPERATURE: 24, ATTR_HVAC_MODE: HVACMode.DRY},
+    )
+    mock_unit.async_set_status.assert_awaited_with({"Set_OnOff": 1, "Set_Mode": 4, "Set_Temp": 24})
+    await _call(
+        hass,
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        **{ATTR_ENTITY_ID: CLIMATE, ATTR_TEMPERATURE: 25, ATTR_HVAC_MODE: HVACMode.OFF},
+    )
+    mock_unit.async_set_status.assert_awaited_with({"Set_OnOff": 0, "Set_Temp": 25})

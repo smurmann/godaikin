@@ -44,7 +44,6 @@ the rule-by-rule status is in [`quality_scale.yaml`](custom_components/godaikin/
 | `switch` Ioniser | The unit's ioniser / streamer |
 | `sensor` Firmware version | Adapter firmware (diagnostic) |
 | `sensor` Room / outdoor temperature, humidity, power, error code | Created only when the unit reports the field locally (adapter firmware V1.2.3 does not) |
-| `sensor` Estimated power / energy | Estimate from state and rated power; the energy sensor feeds the Energy dashboard |
 | Cloud sensors (opt-in) | Room, coil, outdoor and discharge temperatures, humidity, power, compressor frequency/runtime/state, DC bus voltage, error code, cloud connectivity, presence |
 
 Each config entry is one unit and one device. Built-in behaviours: DHCP discovery of new units,
@@ -98,8 +97,6 @@ The feature set is detected from your GO DAIKIN account at setup (the cloud shad
 |---|---|---|
 | Cloud sensors | Opt-in cloud polling for sensor values (see *Cloud sensors*) | Off |
 | Cloud poll interval | 5–120 minutes | 10 |
-| Rated input power (W) | Power while the compressor runs, for the estimate | From capacity class |
-| Indoor fan power (W) | Power with only the fan running | 45 |
 | Modes the unit supports | Which of cool, dry, fan, heat, auto the climate entity offers | Detected; cool + dry + fan for entries without detection |
 | Presets the unit supports | boost (Turbo), silent, sleep | Detected from `Ena_Turbo`, `Ena_Silent`, `Bar_Sleep` |
 | Fan speed steps | 3 or 5 | Detected from the handset type (`Inf_IDAlgo`) |
@@ -127,23 +124,6 @@ How it is kept safe and cheap:
   single poll and a single session. Default interval 10 minutes, minimum 5: at most 288
   requests a day for the whole account, well under what the app itself generates.
 - A cloud outage only makes the cloud sensors unavailable; local control keeps working.
-
-## Energy estimate
-
-These units do not meter themselves (`Sta_ODPwrCon` and `Sta_ODCpFreq` stay 0 while running),
-so the integration estimates: 0 W when off, the **rated input power** while the compressor runs,
-and the **indoor fan power** (scaled by fan speed) in fan-only mode or while the compressor is
-paused. With cloud sensors enabled the compressor state comes from the unit; without them a
-cooling or drying mode is assumed to run the compressor. Two sensors result:
-
-- *Estimated power* (W)
-- *Estimated energy* (kWh, `total_increasing`, survives restarts): add it under *Settings →
-  Dashboards → Energy → Individual devices*.
-
-Both power figures are options on the entry. The rated default comes from the unit's capacity
-class (`Inf_IDCap`, e.g. 35 → 3.5 kW class → 1100 W); set it from the nameplate or a plug meter
-for better accuracy. Expect ±20–40 % on a single day and ±15–25 % over a month for inverter units,
-because only on/off is known, not the modulation level.
 
 ## Data updates
 
