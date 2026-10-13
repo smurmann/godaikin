@@ -20,7 +20,7 @@ PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: DaikinConfigEntry, add: AddEntitiesCallback) -> None:
-    add([DaikinIonSwitch(entry.runtime_data, entry.data[CONF_THING_NAME])])
+    add([DaikinIonSwitch(entry.runtime_data.local, entry.data[CONF_THING_NAME])])
 
 
 class DaikinIonSwitch(DaikinLocalEntity, SwitchEntity):

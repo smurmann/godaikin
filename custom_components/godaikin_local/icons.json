@@ -44,8 +44,17 @@
         }
       }
     },
+    "binary_sensor": {
+      "compressor": { "default": "mdi:engine-off", "state": { "on": "mdi:engine" } },
+      "cloud_connected": { "default": "mdi:cloud-off-outline", "state": { "on": "mdi:cloud-check-outline" } }
+    },
     "sensor": {
       "firmware_version": { "default": "mdi:chip" },
+      "cloud_compressor_frequency": { "default": "mdi:sine-wave" },
+      "cloud_compressor_runtime": { "default": "mdi:timer-outline" },
+      "cloud_dc_bus_voltage": { "default": "mdi:current-dc" },
+      "cloud_error_code": { "default": "mdi:alert-circle-outline" },
+      "cloud_discharge_temperature": { "default": "mdi:thermometer-high" },
       "error_code": { "default": "mdi:alert-circle-outline" },
       "power": { "default": "mdi:flash" }
     }

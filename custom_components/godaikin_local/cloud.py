@@ -11,8 +11,10 @@ only the per-unit keys it gets back.  After that, all traffic is LAN-only.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -103,6 +105,12 @@ class CloudSession:
     user_id: str
     region: str
     username: str
+    expires_at: float = 0.0  # time.monotonic() deadline
+    refresh_token: str | None = None
+    subject: str | None = None  # Cognito 'sub' claim; the refresh call needs it as 'username'
+
+    def expired(self, margin: float = 300.0) -> bool:
+        return time.monotonic() >= self.expires_at - margin
 
 
 def unwrap(doc: Any) -> Any:
@@ -185,6 +193,25 @@ def classify_http_error(status: int, text: str, url: str) -> CloudError:
     return CloudError(f"HTTP {status} from {url}: {text[:200]}")
 
 
+def jwt_claims(token: str) -> dict[str, Any]:
+    """Decode a JWT payload without verification (we only need the public 'sub' claim)."""
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+        return claims if isinstance(claims, dict) else {}
+    except (IndexError, ValueError):
+        return {}
+
+
+def _ttl(value: Any) -> float:
+    """Token lifetime in seconds (login reports ExpiresIn=28800); default to one hour."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 3600.0
+
+
 class GoDaikinCloud:
     def __init__(self, session: aiohttp.ClientSession) -> None:
         self._session = session
@@ -221,6 +248,31 @@ class GoDaikinCloud:
             user_id=str(doc.get("userID") or doc.get("username") or username),
             region=normalise_region(doc.get("activeRegion")),
             username=str(doc.get("username") or username),
+            expires_at=time.monotonic() + _ttl(doc.get("ExpiresIn")),
+            refresh_token=doc.get("RefreshToken"),
+            subject=jwt_claims(doc["IdToken"]).get("sub"),
+        )
+
+    async def async_refresh(self, subject: str, refresh_token: str) -> CloudSession:
+        """Renew tokens without the password (app's refreshtoken call: type 1 = normal account).
+
+        Verified live: 'username' must be the Cognito subject id, not the email or userID.
+        """
+        doc = await self._post(
+            f"{UNIVERSAL_API}/refreshtoken",
+            {"requestData": {"type": 1, "username": subject, "refreshToken": refresh_token}},
+        )
+        if not isinstance(doc, dict) or "IdToken" not in doc:
+            raise CloudAuthError("refresh did not return tokens")
+        return CloudSession(
+            id_token=doc["IdToken"],
+            access_token=doc.get("AccessToken"),
+            user_id=str(doc.get("userID") or subject),
+            region=normalise_region(doc.get("activeRegion")),
+            username=subject,
+            expires_at=time.monotonic() + _ttl(doc.get("ExpiresIn")),
+            refresh_token=refresh_token,
+            subject=subject,
         )
 
     async def async_get_units(self, session: CloudSession) -> list[CloudUnit]:
@@ -248,3 +300,7 @@ class GoDaikinCloud:
         if last_error:
             raise CloudError(f"could not list units: {last_error}")
         return []
+
+    async def async_get_shadows(self, session: CloudSession) -> dict[str, dict[str, Any]]:
+        """Raw shadow document per thingName (sensor values, flags, state)."""
+        return {u.thing_name: u.raw for u in await self.async_get_units(session)}

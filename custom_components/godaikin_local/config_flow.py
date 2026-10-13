@@ -25,17 +25,24 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .capabilities import resolve
-from .cloud import CloudAuthError, CloudError, CloudUnit, GoDaikinCloud
+from .cloud import CloudAuthError, CloudError, CloudSession, CloudUnit, GoDaikinCloud
 from .const import (
     ALL_MODES,
     ALL_PRESETS,
     CONF_CAPABILITIES,
+    CONF_CLOUD_REFRESH_TOKEN,
+    CONF_CLOUD_SUBJECT,
     CONF_FIVE_SPEED,
     CONF_THING_NAME,
     CONF_UNIT_KEY,
+    DEFAULT_CLOUD_INTERVAL,
     DEFAULT_PORT,
     DOMAIN,
     FAN_SPEED_CHOICES,
+    MAX_CLOUD_INTERVAL,
+    MIN_CLOUD_INTERVAL,
+    OPT_CLOUD,
+    OPT_CLOUD_INTERVAL,
     OPT_FAN_SPEEDS,
     OPT_HVAC_MODES,
     OPT_PRESETS,
@@ -76,6 +83,7 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered: dict[str, str] = {}
         self._chosen: CloudUnit | None = None
         self._dhcp_thing: str | None = None
+        self._session: CloudSession | None = None
 
     # ----- entry points -------------------------------------------------------------
 
@@ -113,8 +121,8 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _fetch_units(self, username: str, password: str) -> dict[str, CloudUnit]:
         cloud = GoDaikinCloud(async_get_clientsession(self.hass))
-        session = await cloud.async_login(username, password)
-        return {u.thing_name: u for u in await cloud.async_get_units(session) if u.key}
+        self._session = await cloud.async_login(username, password)
+        return {u.thing_name: u for u in await cloud.async_get_units(self._session) if u.key}
 
     async def async_step_cloud(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -231,9 +239,15 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                 if unit is None or not unit.key:
                     errors["base"] = "unit_not_in_account"
                 else:
-                    return self.async_update_reload_and_abort(
-                        entry, data_updates={CONF_UNIT_KEY: unit.key, CONF_CAPABILITIES: unit.capabilities}
-                    )
+                    updates: dict[str, Any] = {CONF_UNIT_KEY: unit.key, CONF_CAPABILITIES: unit.capabilities}
+                    if (
+                        entry.data.get(CONF_CLOUD_REFRESH_TOKEN)
+                        and self._session
+                        and self._session.refresh_token
+                    ):
+                        updates[CONF_CLOUD_REFRESH_TOKEN] = self._session.refresh_token
+                        updates[CONF_CLOUD_SUBJECT] = self._session.subject
+                    return self.async_update_reload_and_abort(entry, data_updates=updates)
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=STEP_CLOUD_SCHEMA,
@@ -277,12 +291,22 @@ class GoDaikinLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class GoDaikinOptionsFlow(OptionsFlow):
-    """Let the user override the detected feature set (modes, presets, fan speeds, swing)."""
+    """Override the detected feature set and opt in to cloud sensors."""
+
+    def __init__(self) -> None:
+        self._pending: dict[str, Any] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
+            self._pending = user_input
+            needs_login = user_input.get(OPT_CLOUD) and not self.config_entry.data.get(
+                CONF_CLOUD_REFRESH_TOKEN
+            )
+            if needs_login:
+                return await self.async_step_cloud_login()
             return self.async_create_entry(data=user_input)
         caps = resolve(self.config_entry)
+        opts = self.config_entry.options
         schema = vol.Schema(
             {
                 vol.Required(OPT_HVAC_MODES, default=list(caps.hvac_modes)): cv.multi_select(
@@ -293,6 +317,40 @@ class GoDaikinOptionsFlow(OptionsFlow):
                 ),
                 vol.Required(OPT_FAN_SPEEDS, default=str(caps.fan_speeds)): vol.In(FAN_SPEED_CHOICES),
                 vol.Required(OPT_SWING, default=caps.swing): bool,
+                vol.Required(OPT_CLOUD, default=bool(opts.get(OPT_CLOUD, False))): bool,
+                vol.Required(
+                    OPT_CLOUD_INTERVAL, default=int(opts.get(OPT_CLOUD_INTERVAL, DEFAULT_CLOUD_INTERVAL))
+                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_CLOUD_INTERVAL, max=MAX_CLOUD_INTERVAL)),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
+
+    async def async_step_cloud_login(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """One-time sign-in to obtain a refresh token; the password is used here and discarded."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            cloud = GoDaikinCloud(async_get_clientsession(self.hass))
+            try:
+                session = await cloud.async_login(user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
+                units = await cloud.async_get_units(session)
+            except CloudAuthError:
+                errors["base"] = "invalid_auth"
+            except CloudError:
+                errors["base"] = "cannot_connect"
+            else:
+                thing = self.config_entry.data[CONF_THING_NAME]
+                if not session.refresh_token or not session.subject:
+                    errors["base"] = "cannot_connect"
+                elif thing not in {u.thing_name for u in units}:
+                    errors["base"] = "unit_not_in_account"
+                else:
+                    self.hass.config_entries.async_update_entry(
+                        self.config_entry,
+                        data={
+                            **self.config_entry.data,
+                            CONF_CLOUD_REFRESH_TOKEN: session.refresh_token,
+                            CONF_CLOUD_SUBJECT: session.subject,
+                        },
+                    )
+                    return self.async_create_entry(data=self._pending)
+        return self.async_show_form(step_id="cloud_login", data_schema=STEP_CLOUD_SCHEMA, errors=errors)

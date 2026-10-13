@@ -58,6 +58,7 @@ F_TURBO = "Set_Turbo"
 F_SLEEP = "Set_Sleep"
 F_ION = "Set_Ion"
 F_ROOM_TEMP = "Stat_IDRoomTemp"
+F_ROOM_TEMP_CLOUD = "Sta_IDRoomTemp"  # cloud shadow spelling (verified live)
 F_OUTDOOR_TEMP = "Stat_ODAirTemp"
 F_HUMIDITY = "Sta_IDRh"
 F_ERROR = "Stat_ErrorCode"

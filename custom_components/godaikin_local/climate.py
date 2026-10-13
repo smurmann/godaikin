@@ -27,6 +27,7 @@ from .protocol import (
     F_MODE,
     F_ONOFF,
     F_ROOM_TEMP,
+    F_ROOM_TEMP_CLOUD,
     F_SILENT,
     F_SLEEP,
     F_SWING,
@@ -60,7 +61,7 @@ PRESET_FIELDS = {PRESET_BOOST: F_TURBO, PRESET_SILENT: F_SILENT, PRESET_SLEEP: F
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: DaikinConfigEntry, add: AddEntitiesCallback) -> None:
-    add([DaikinLocalClimate(entry.runtime_data, entry)])
+    add([DaikinLocalClimate(entry.runtime_data.local, entry)])
 
 
 class DaikinLocalClimate(DaikinLocalEntity, ClimateEntity):
@@ -76,6 +77,7 @@ class DaikinLocalClimate(DaikinLocalEntity, ClimateEntity):
     def __init__(self, coordinator: DaikinLocalCoordinator, entry: DaikinConfigEntry) -> None:
         super().__init__(coordinator, entry.data[CONF_THING_NAME], "climate")
         self._caps: UnitCapabilities = resolve(entry)
+        self._cloud = entry.runtime_data.cloud
         # Only advertise what the unit supports (detected from the cloud shadow, or set in options).
         self._attr_hvac_modes = [HVACMode.OFF, *(HVAC_FROM_MODE[m] for m in self._caps.hvac_modes)]
         self._attr_preset_modes = [PRESET_NONE, *self._caps.presets]
@@ -112,9 +114,19 @@ class DaikinLocalClimate(DaikinLocalEntity, ClimateEntity):
         mode = VALUE_TO_MODE.get(to_int(self.state_doc.get(F_MODE)) or -1)
         return HVAC_FROM_MODE.get(mode) if mode else None
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._cloud is not None:
+            self.async_on_remove(self._cloud.async_add_listener(self.async_write_ha_state))
+
     @property
     def current_temperature(self) -> float | None:
-        return to_float(self.state_doc.get(F_ROOM_TEMP))  # absent on adapter firmware V1.2.3
+        local = to_float(self.state_doc.get(F_ROOM_TEMP))  # absent on adapter firmware V1.2.3
+        if local is not None:
+            return local
+        if self._cloud is not None and self._cloud.data:
+            return to_float(self._cloud.data.get(F_ROOM_TEMP_CLOUD))
+        return None
 
     @property
     def target_temperature(self) -> float | None:

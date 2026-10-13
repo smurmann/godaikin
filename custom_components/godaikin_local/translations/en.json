@@ -125,15 +125,32 @@
           "hvac_modes": "Modes the unit supports",
           "presets": "Presets the unit supports",
           "fan_speeds": "Fan speed steps",
-          "swing": "Vertical swing"
+          "swing": "Vertical swing",
+          "cloud_sensors": "Cloud sensors (room temperature, coil/outdoor temperatures, power, compressor data)",
+          "cloud_interval": "Cloud poll interval (minutes)"
         },
         "data_description": {
           "hvac_modes": "Cooling-only units have cool, dry and fan; heat and auto only exist on heat-pump models.",
           "presets": "boost = Turbo, silent, sleep.",
           "fan_speeds": "3 for remotes with three fan bars, 5 for remotes with five.",
-          "swing": "Untick if the unit has no motorised louver."
+          "swing": "Untick if the unit has no motorised louver.",
+          "cloud_sensors": "Opt-in. Control stays local; only sensor values are read from your GO DAIKIN account. Keeps a revocable refresh token, never your password.",
+          "cloud_interval": "How often to read the cloud shadow (5–120 minutes). One call covers every unit on the account and is shared between them; 10 minutes keeps well clear of API limits."
+        }
+      },
+      "cloud_login": {
+        "title": "Sign in for cloud sensors",
+        "description": "Used once to obtain a refresh token for this unit. The password is not stored.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the GO DAIKIN cloud.",
+      "invalid_auth": "Email or password is incorrect.",
+      "unit_not_in_account": "This unit is not paired with that account."
     }
   },
   "exceptions": {
@@ -194,7 +211,23 @@
       "humidity": { "name": "Humidity" },
       "power": { "name": "Power" },
       "error_code": { "name": "Error code" },
-      "firmware_version": { "name": "Firmware version" }
+      "firmware_version": { "name": "Firmware version" },
+      "cloud_room_temperature": { "name": "Room temperature" },
+      "cloud_indoor_coil_temperature": { "name": "Indoor coil temperature" },
+      "cloud_outdoor_temperature": { "name": "Outdoor temperature" },
+      "cloud_outdoor_coil_temperature": { "name": "Outdoor coil temperature" },
+      "cloud_discharge_temperature": { "name": "Discharge temperature" },
+      "cloud_humidity": { "name": "Humidity" },
+      "cloud_power": { "name": "Power" },
+      "cloud_compressor_frequency": { "name": "Compressor frequency" },
+      "cloud_compressor_runtime": { "name": "Compressor runtime" },
+      "cloud_dc_bus_voltage": { "name": "DC bus voltage" },
+      "cloud_error_code": { "name": "Error code" }
+    },
+    "binary_sensor": {
+      "compressor": { "name": "Compressor" },
+      "cloud_connected": { "name": "Cloud connection" },
+      "presence": { "name": "Presence" }
     }
   }
 }

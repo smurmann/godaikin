@@ -43,7 +43,8 @@ the rule-by-rule status is in [`quality_scale.yaml`](custom_components/godaikin_
 | `select` Louver position | Fixed vertical louver positions 1–5, off, or swing |
 | `switch` Ioniser | The unit's ioniser / streamer |
 | `sensor` Firmware version | Adapter firmware (diagnostic) |
-| `sensor` Room / outdoor temperature, humidity, power, error code | Created only when the unit reports the field (adapter firmware V1.2.3 does not) |
+| `sensor` Room / outdoor temperature, humidity, power, error code | Created only when the unit reports the field locally (adapter firmware V1.2.3 does not) |
+| Cloud sensors (opt-in) | Room, coil, outdoor and discharge temperatures, humidity, power, compressor frequency/runtime/state, DC bus voltage, error code, cloud connectivity, presence |
 
 Each config entry is one unit and one device. Built-in behaviours: DHCP discovery of new units,
 re-authentication when a key is rejected, reconfiguration of the address or name, diagnostics
@@ -94,6 +95,8 @@ The feature set is detected from your GO DAIKIN account at setup (the cloud shad
 
 | Option | Meaning | Default |
 |---|---|---|
+| Cloud sensors | Opt-in cloud polling for sensor values (see *Cloud sensors*) | Off |
+| Cloud poll interval | 5–120 minutes | 10 |
 | Modes the unit supports | Which of cool, dry, fan, heat, auto the climate entity offers | Detected; cool + dry + fan for entries without detection |
 | Presets the unit supports | boost (Turbo), silent, sleep | Detected from `Ena_Turbo`, `Ena_Silent`, `Bar_Sleep` |
 | Fan speed steps | 3 or 5 | Detected from the handset type (`Inf_IDAlgo`) |
@@ -102,11 +105,32 @@ The feature set is detected from your GO DAIKIN account at setup (the cloud shad
 Cooling-only units (common in Malaysia and Singapore) have no heat or auto mode; selecting one
 would be silently ignored by the unit, so those modes are hidden.
 
+## Cloud sensors (optional)
+
+The local channel exposes only the control state. The unit reports its sensors to Daikin's
+cloud, and you can opt in to reading them: *Configure → Cloud sensors*. Home Assistant then
+adds room, indoor-coil, outdoor, outdoor-coil and discharge temperatures, humidity, power,
+compressor frequency and runtime, DC bus voltage, error code, a compressor-running binary
+sensor, a cloud-connectivity binary sensor and presence (on models with a sensor). The climate
+card also shows the room temperature. Control still never leaves your LAN.
+
+How it is kept safe and cheap:
+
+- Enabling asks for your GO DAIKIN login **once**. Only the resulting refresh token and the
+  account's subject ID are stored, never the password. Tokens are renewed with the refresh
+  token the same way the app does; if Daikin revokes it, Home Assistant prompts you to sign in
+  again. Changing your password in the app revokes it immediately.
+- One cloud request returns every unit on the account, so entries on the same account share a
+  single poll and a single session. Default interval 10 minutes, minimum 5: at most 288
+  requests a day for the whole account, well under what the app itself generates.
+- A cloud outage only makes the cloud sensors unavailable; local control keeps working.
+
 ## Data updates
 
 The integration polls each unit every 30 seconds over TCP (the app polls every second; 30 s is
 plenty for an aircon and gentle on the adapter). Commands are sent immediately and the entity
 state is updated optimistically, then confirmed by the next poll. There is no push channel.
+Cloud sensors, when enabled, are read every 10 minutes by default (see above).
 
 ## Automation examples
 
@@ -151,8 +175,8 @@ automation:
 
 ## Known limitations
 
-- Adapter firmware V1.2.3 does not expose room temperature, humidity or power locally, so the
-  climate card shows no current temperature. Pair it with a room sensor if you need one.
+- Adapter firmware V1.2.3 does not expose room temperature, humidity or power locally. Enable
+  *Cloud sensors* to get them from Daikin's cloud, or pair the climate card with a room sensor.
 - UDP discovery is a broadcast and does not cross VLANs; DHCP discovery needs Home Assistant to
   see the unit's DHCP traffic. Entering the IP by hand always works.
 - One account login per unit during setup (Home Assistant creates one config entry per flow).

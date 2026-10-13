@@ -22,7 +22,7 @@ OPTIONS = [OPTION_OFF, *(f"position_{n}" for n in LOUVER_POSITIONS), OPTION_SWIN
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: DaikinConfigEntry, add: AddEntitiesCallback) -> None:
-    add([DaikinLouverSelect(entry.runtime_data, entry.data[CONF_THING_NAME])])
+    add([DaikinLouverSelect(entry.runtime_data.local, entry.data[CONF_THING_NAME])])
 
 
 class DaikinLouverSelect(DaikinLocalEntity, SelectEntity):

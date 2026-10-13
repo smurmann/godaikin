@@ -1,6 +1,6 @@
 [project]
 name = "godaikin-local"
-version = "0.4.0"
+version = "0.5.0"
 description = "Cloud-free Home Assistant integration for GO DAIKIN air conditioners"
 requires-python = ">=3.13.2"
 
